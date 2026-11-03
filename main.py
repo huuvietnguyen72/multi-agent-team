@@ -15,7 +15,8 @@ def main() -> None:
     load_dotenv(ROOT / ".env")
     ap = argparse.ArgumentParser(description="Team phần mềm 5 AI agent")
     ap.add_argument("requirements", nargs="?", default="requirements/library_system.md")
-    ap.add_argument("--mode", choices=["mock", "llm"], help="mock: agent giả; llm: gọi Claude")
+    ap.add_argument("--mode", choices=["mock", "llm", "claude-code"],
+                    help="mock: agent giả; llm: Claude API (API key); claude-code: gói thuê bao qua `claude -p`")
     ap.add_argument("--draw", action="store_true", help="Chỉ xuất sơ đồ Mermaid ra docs/graph.mmd")
     args = ap.parse_args()
     if args.mode:

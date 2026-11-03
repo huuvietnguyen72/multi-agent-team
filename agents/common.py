@@ -4,8 +4,9 @@ from __future__ import annotations
 import json
 import os
 
-from agents import mock
-from agents.llm import call_structured
+from agents import claude_code, llm, mock
+
+MODES = ("mock", "llm", "claude-code")
 
 
 def mode() -> str:
@@ -13,10 +14,16 @@ def mode() -> str:
 
 
 def ask(role: str, node: str, state, prompt: str, schema):
-    """mock: dùng hàm cố định trong agents/mock.py; llm: gọi Claude với skills của role."""
-    if mode() == "mock":
+    """mock: hàm cố định trong agents/mock.py; llm: gọi Claude API bằng API key;
+    claude-code: gọi `claude -p`, dùng gói thuê bao Claude (Pro/Max) đang đăng nhập."""
+    m = mode()
+    if m == "mock":
         return getattr(mock, node)(state)
-    return call_structured(role, prompt, schema)
+    if m == "claude-code":
+        return claude_code.call_structured(role, prompt, schema)
+    if m == "llm":
+        return llm.call_structured(role, prompt, schema)
+    raise ValueError(f"AGENT_MODE không hợp lệ: {m!r} (chọn một trong {', '.join(MODES)})")
 
 
 def dump(obj) -> str:
