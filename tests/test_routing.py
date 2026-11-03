@@ -1,5 +1,5 @@
 """Kiểm tra luật định tuyến (mục 5) và một lần chạy đủ graph với agent giả."""
-from agents.llm import load_skill
+from agents.skills import load_skill
 from graph import build_graph, route_after_code_review, route_after_review, route_after_test
 
 
@@ -40,8 +40,9 @@ def test_skills_have_frontmatter_and_sections():
             assert section in body, (role, section)
 
 
-def test_full_mock_run(monkeypatch):
-    monkeypatch.setenv("AGENT_MODE", "mock")
+def test_full_mock_run(monkeypatch, tmp_path):
+    monkeypatch.setenv("MODEL", "mock")
+    monkeypatch.setenv("OUTPUT_DIR", str(tmp_path))  # không ghi đè output của dự án nào
     app = build_graph()
     final = app.invoke({"run_id": "pytest", "requirements": "x", "log": []},
                        config={"configurable": {"thread_id": "pytest"}})
@@ -51,3 +52,4 @@ def test_full_mock_run(monkeypatch):
     assert nodes[7:] == ["reviewer", "frontend", "reviewer", "tester", "backend", "reviewer", "tester",
                          "pm_accept"]
     assert final["final_status"] == "ACCEPTED"
+    assert (tmp_path / "docs" / "final_report.md").is_file() and (tmp_path / "backend").is_dir()

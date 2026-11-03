@@ -1,26 +1,35 @@
-"""Chạy `mvn test` cho backend agent sinh ra (bật bằng RUN_MVN=1)."""
+"""Chạy lệnh test tự động của dự án (khai báo ở [tests] trong project.toml) trên code agent sinh ra.
+
+Chỉ chạy khi RUN_TESTS=1 (RUN_MVN=1 vẫn được chấp nhận cho cấu hình cũ). Kết quả đưa cho Tester làm bằng chứng.
+Lệnh lấy từ project.toml do chính bạn viết, chạy qua shell trong <output>/<cwd>.
+"""
 from __future__ import annotations
 
 import os
-import shutil
 import subprocess
 
-from tools.file_tools import OUTPUT
+from tools.file_tools import display, output_dir
 
 
-def run_maven_tests(timeout: int = 600) -> str | None:
-    if os.getenv("RUN_MVN") != "1":
+def tests_enabled() -> bool:
+    return os.getenv("RUN_TESTS") == "1" or os.getenv("RUN_MVN") == "1"
+
+
+def run_project_tests(tests: dict | None) -> str | None:
+    """`tests` = {"command", "cwd", "timeout"} lấy từ state. Trả output (đã cắt) hoặc None nếu không chạy."""
+    if not tests_enabled():
         return None
-    mvn = shutil.which("mvn") or shutil.which("mvn.cmd")
-    if not mvn:
-        return "mvn không có trên PATH, bỏ qua chạy test."
-    backend = OUTPUT / "backend"
-    if not (backend / "pom.xml").exists():
-        return "Không có output/backend/pom.xml: backend chưa sinh project Maven."
+    command = (tests or {}).get("command")
+    if not command:
+        return "Dự án chưa khai báo [tests].command trong project.toml, bỏ qua chạy test."
+    cwd = (output_dir() / tests.get("cwd", ".")).resolve()
+    if not cwd.is_dir():
+        return f"Không có thư mục {display(cwd)}: code chưa được sinh ra, bỏ qua chạy test."
+    timeout = int(tests.get("timeout", 600))
     try:
-        proc = subprocess.run([mvn, "-q", "-B", "test"], cwd=backend, capture_output=True,
-                              text=True, timeout=timeout)
+        proc = subprocess.run(command, shell=True, cwd=cwd, capture_output=True, text=True,
+                              encoding="utf-8", errors="replace", timeout=timeout)
     except subprocess.TimeoutExpired:
-        return f"mvn test quá {timeout}s."
+        return f"`{command}` chạy quá {timeout}s."
     out = (proc.stdout + proc.stderr)[-8000:]
-    return f"exit code {proc.returncode}\n{out}"
+    return f"$ {command}  (trong {display(cwd)})\nexit code {proc.returncode}\n{out}"

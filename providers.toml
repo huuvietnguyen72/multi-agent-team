@@ -1,0 +1,66 @@
+# Provider dùng chung, chọn trong .env bằng "<tên provider>:<model>":
+#   MODEL=claude-code:sonnet                 mặc định cho mọi role
+#   MODEL_BACKEND=opencode-go:glm-5.3        riêng một role (pm, ba, backend, frontend, reviewer, tester)
+#   MODEL=mock                               cả team chạy kịch bản giả, không tốn token
+# Không ghi key vào file này: `api_key_env` là TÊN biến môi trường chứa key (đặt giá trị trong .env).
+# Thêm provider riêng cho máy bạn (hoặc ghi đè một mục dưới đây) trong providers.local.toml, file đó không commit.
+#
+# type: "anthropic"          Claude API hoặc endpoint tương thích Anthropic Messages (agents/providers/anthropic_api.py)
+#       "openai-compatible"  mọi endpoint chuẩn OpenAI Chat Completions (agents/providers/openai_compat.py)
+#       "claude-code"        Claude Code CLI `claude -p`, dùng gói Claude Pro/Max (agents/providers/claude_code.py)
+# Tùy chọn chung: default_model, effort, max_tokens. Tùy chọn riêng của từng type: xem docstring file adapter.
+#
+# Đã thử với dự án này: claude-code, opencode-go. Các mục khác là cấu hình mẫu theo tài liệu của nhà cung cấp, chưa chạy thử.
+
+[providers.claude-code]
+type = "claude-code"
+default_model = "sonnet"
+effort = "medium"
+timeout = 1800
+
+[providers.claude-api]
+type = "anthropic"
+api_key_env = "ANTHROPIC_API_KEY"
+default_model = "claude-opus-5-5"
+effort = "medium"
+server_fallback = true        # chỉ Claude API hỗ trợ; tắt khi trỏ base_url sang gateway khác
+
+[providers.opencode-go]
+type = "openai-compatible"
+base_url = "https://opencode.ai/inference/go/openai/v1"
+api_key_env = "OPENCODE_GO_API_KEY"
+session_header = "x-opencode-session"   # OpenCode Go bắt buộc header phiên
+# model: glm-5.3, kimi-k3.1-pro, kimi-k2.7-code, deepseek-v4-pro, deepseek-v4.1-flash, ...
+# danh sách đầy đủ: https://opencode.ai/inference/go/v1/models
+
+[providers.openai]
+type = "openai-compatible"
+base_url = "https://api.openai.com/v1"
+api_key_env = "OPENAI_API_KEY"
+max_tokens_param = "max_completion_tokens"
+
+[providers.openrouter]
+type = "openai-compatible"
+base_url = "https://openrouter.ai/api/v1"
+api_key_env = "OPENROUTER_API_KEY"
+
+[providers.deepseek]
+type = "openai-compatible"
+base_url = "https://api.deepseek.com/v1"
+api_key_env = "DEEPSEEK_API_KEY"
+response_format = "json_object"
+
+[providers.gemini]
+type = "openai-compatible"
+base_url = "https://generativelanguage.googleapis.com/v1beta/openai"
+api_key_env = "GEMINI_API_KEY"
+
+[providers.ollama]
+type = "openai-compatible"
+base_url = "http://localhost:11434/v1"   # Ollama chạy local, không cần key
+read_timeout = 900
+
+[providers.lmstudio]
+type = "openai-compatible"
+base_url = "http://localhost:1234/v1"    # LM Studio chạy local, không cần key
+read_timeout = 900

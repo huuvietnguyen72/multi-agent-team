@@ -1,0 +1,16 @@
+# Mẫu dự án. Chép cả thư mục này thành projects/<tên-dự-án>/ rồi sửa 3 file:
+#   project.toml (file này), requirements.md, stack.md
+# Chạy: python main.py --project <tên-dự-án> --mode claude-code
+
+name = "Tên hiển thị của dự án"
+requirements = "requirements.md"   # đề bài, tính từ thư mục dự án
+stack = "stack.md"                 # stack và quy ước kỹ thuật, chèn vào đầu prompt của mọi agent
+# output = "output"                # nơi agent ghi code và tài liệu (mặc định: output/ trong thư mục dự án)
+
+[tests]
+# Lệnh test tự động cho code agent sinh ra. Tester chạy lệnh này khi RUN_TESTS=1 trong .env
+# và dùng kết quả làm bằng chứng. Bỏ trống command nếu chưa có.
+# cwd tính từ thư mục output; backend nằm ở output/backend, frontend ở output/frontend.
+command = ""                       # ví dụ: "mvn -q -B test", "pytest -q", "npm test --silent"
+cwd = "backend"
+timeout = 600

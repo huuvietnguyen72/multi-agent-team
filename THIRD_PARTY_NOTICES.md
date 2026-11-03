@@ -1,6 +1,6 @@
 # Third-party notices
 
-Các file `skills/*/SKILL.md` trong repo này được viết lại bằng tiếng Việt, rút gọn và chỉnh cho đề "Hệ thống mượn sách thư viện", dựa trên các skill sau của **addyosmani/agent-skills** (https://github.com/addyosmani/agent-skills, commit `301b02b12bff98e4688e6984af6556802322bbde`):
+Các file `skills/*/SKILL.md` trong repo này được viết lại bằng tiếng Việt, rút gọn và chỉnh thành quy trình chung cho team agent (không gắn với một dự án cụ thể; phần riêng của từng dự án nằm ở `projects/<tên>/stack.md`), dựa trên các skill sau của **addyosmani/agent-skills** (https://github.com/addyosmani/agent-skills, commit `301b02b12bff98e4688e6984af6556802322bbde`):
 
 | File trong repo này | Skill gốc |
 | --- | --- |
