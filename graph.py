@@ -8,8 +8,9 @@ from agents.ba import ba
 from agents.backend import backend
 from agents.frontend import frontend
 from agents.pm import pm_accept, pm_plan, pm_review
+from agents.reviewer import reviewer
 from agents.tester import tester
-from state import MAX_ROUNDS, TeamState
+from state import MAX_ROUNDS, TeamState, blocking_findings
 
 
 def route_after_review(state: TeamState):
@@ -18,6 +19,13 @@ def route_after_review(state: TeamState):
     if state.get("review_round", 0) >= MAX_ROUNDS:
         return "pm_accept"                      # dừng, cần người xem lại
     return "ba"
+
+
+def route_after_code_review(state: TeamState):
+    blocking = blocking_findings(state)
+    if not blocking or state.get("code_review_round", 0) >= MAX_ROUNDS:
+        return "tester"                         # hết vòng: Tester vẫn chạy, finding tồn đọng ghi ở nghiệm thu
+    return sorted({f["owner"] for f in blocking})
 
 
 def route_after_test(state: TeamState):
@@ -31,15 +39,16 @@ def route_after_test(state: TeamState):
 def build_graph(checkpointer=None):
     g = StateGraph(TeamState)
     for name, fn in [("pm_plan", pm_plan), ("ba", ba), ("pm_review", pm_review), ("backend", backend),
-                     ("frontend", frontend), ("tester", tester), ("pm_accept", pm_accept)]:
+                     ("frontend", frontend), ("reviewer", reviewer), ("tester", tester), ("pm_accept", pm_accept)]:
         g.add_node(name, fn)
     g.add_edge(START, "pm_plan")
     g.add_edge("pm_plan", "ba")
     g.add_edge("ba", "pm_review")
     g.add_conditional_edges("pm_review", route_after_review, ["ba", "backend", "frontend", "pm_accept"])
-    # BE và FE cùng chạy trong một bước thì tester chỉ chạy một lần sau khi cả hai xong
-    g.add_edge("backend", "tester")
-    g.add_edge("frontend", "tester")
+    # Mọi lần Dev nộp code đều qua Reviewer; BE và FE cùng chạy thì Reviewer chỉ chạy một lần sau cả hai
+    g.add_edge("backend", "reviewer")
+    g.add_edge("frontend", "reviewer")
+    g.add_conditional_edges("reviewer", route_after_code_review, ["backend", "frontend", "tester"])
     g.add_conditional_edges("tester", route_after_test, ["backend", "frontend", "pm_accept"])
     g.add_edge("pm_accept", END)
     return g.compile(checkpointer=checkpointer or MemorySaver())

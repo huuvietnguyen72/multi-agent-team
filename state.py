@@ -24,6 +24,12 @@ class TeamState(TypedDict, total=False):
     backend_code: list[str]   # đường dẫn file trong output/backend
     frontend_code: list[str]  # đường dẫn file trong output/frontend
 
+    # Reviewer
+    review_approved: bool
+    review_findings: list[dict]  # mỗi finding có severity và owner: backend | frontend
+    review_summary: str
+    code_review_round: int    # số vòng review trong một vòng test, reset khi Tester trả bug
+
     # Tester
     test_cases: list[dict]
     test_report: str
@@ -38,3 +44,9 @@ class TeamState(TypedDict, total=False):
 
 
 MAX_ROUNDS = 3
+BLOCKING = ("critical", "required")
+
+
+def blocking_findings(state, owner: str | None = None) -> list[dict]:
+    return [f for f in state.get("review_findings", [])
+            if f["severity"] in BLOCKING and (owner is None or f["owner"] == owner)]

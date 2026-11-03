@@ -10,18 +10,22 @@ graph TD;
 	pm_review(pm_review)
 	backend(backend)
 	frontend(frontend)
+	reviewer(reviewer)
 	tester(tester)
 	pm_accept(pm_accept)
 	__end__([<p>__end__</p>]):::last
 	__start__ --> pm_plan;
 	ba --> pm_review;
-	backend --> tester;
-	frontend --> tester;
+	backend --> reviewer;
+	frontend --> reviewer;
 	pm_plan --> ba;
 	pm_review -.-> ba;
 	pm_review -.-> backend;
 	pm_review -.-> frontend;
 	pm_review -.-> pm_accept;
+	reviewer -.-> backend;
+	reviewer -.-> frontend;
+	reviewer -.-> tester;
 	tester -.-> backend;
 	tester -.-> frontend;
 	tester -.-> pm_accept;
