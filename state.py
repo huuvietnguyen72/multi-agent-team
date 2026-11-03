@@ -7,7 +7,12 @@ from typing import Annotated, TypedDict
 
 class TeamState(TypedDict, total=False):
     run_id: str
+    # Dự án (projects/<tên>/): requirements, stack.md chèn vào prompt, lệnh test tự động
+    project: str
+    project_title: str
     requirements: str
+    stack: str
+    tests: dict               # {"command", "cwd", "timeout"} từ [tests] trong project.toml
 
     # PM
     plan: list[dict]
@@ -21,8 +26,8 @@ class TeamState(TypedDict, total=False):
 
     # Dev
     api_spec: str
-    backend_code: list[str]   # đường dẫn file trong output/backend
-    frontend_code: list[str]  # đường dẫn file trong output/frontend
+    backend_code: list[str]   # đường dẫn file trong <output>/backend
+    frontend_code: list[str]  # đường dẫn file trong <output>/frontend
 
     # Reviewer
     review_approved: bool

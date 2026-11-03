@@ -1,10 +1,10 @@
-"""Frontend Dev: viết giao diện HTML/JS gọi API."""
+"""Frontend Dev: viết giao diện gọi API của Backend, theo stack của dự án."""
 from __future__ import annotations
 
 from agents.common import ask, dump
 from state import blocking_findings
 from schemas import FrontendOutput
-from tools.file_tools import read_files, write_files
+from tools.file_tools import display, output_dir, read_files, write_files
 from tools.plane_client import plane
 from tools.runlog import log_step
 
@@ -32,5 +32,5 @@ def frontend(state):
     else:
         action = "viết bản đầu"
     plane.add_comment(task, f"FE {action}, ghi {len(written)} file. {out.notes}")
-    entry = log_step(state["run_id"], "frontend", f"{action}, ghi {len(written)} file vào output/frontend")
+    entry = log_step(state["run_id"], "frontend", f"{action}, ghi {len(written)} file vào {display(output_dir() / 'frontend')}")
     return {"frontend_code": files, "log": [entry]}

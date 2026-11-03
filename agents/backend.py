@@ -1,10 +1,10 @@
-"""Backend Dev: thiết kế API và viết code Spring Boot."""
+"""Backend Dev: thiết kế API và viết code server theo stack của dự án."""
 from __future__ import annotations
 
 from agents.common import ask, dump
 from state import blocking_findings
 from schemas import BackendOutput
-from tools.file_tools import read_files, write_doc, write_files
+from tools.file_tools import display, output_dir, read_files, write_doc, write_files
 from tools.plane_client import plane
 from tools.runlog import log_step
 
@@ -33,5 +33,5 @@ def backend(state):
     else:
         action = "viết bản đầu"
     plane.add_comment(task, f"BE {action}, ghi {len(written)} file. {out.notes}")
-    entry = log_step(state["run_id"], "backend", f"{action}, ghi {len(written)} file vào output/backend")
+    entry = log_step(state["run_id"], "backend", f"{action}, ghi {len(written)} file vào {display(output_dir() / 'backend')}")
     return {"api_spec": out.api_spec, "backend_code": files, "log": [entry]}

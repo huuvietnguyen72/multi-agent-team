@@ -6,23 +6,23 @@ from schemas import TesterOutput
 from tools.file_tools import read_files, write_doc
 from tools.plane_client import plane
 from tools.runlog import log_step
-from tools.test_runner import run_maven_tests
+from tools.test_runner import run_project_tests
 
 
 def tester(state):
     tasks = dict(state["plane_tasks"])
     plane.move_task(tasks.get("TEST"), "In Progress")
     iteration = state.get("iteration", 0) + 1
-    mvn = run_maven_tests()
+    test_output = run_project_tests(state.get("tests"))
     prompt = (f"Vòng kiểm thử {iteration}.\n\nUser stories:\n{dump(state['user_stories'])}"
               f"\n\nAPI spec:\n{state.get('api_spec', '')}"
               f"\n\nCode backend:\n{read_files(state.get('backend_code', []))}"
               f"\n\nCode frontend:\n{read_files(state.get('frontend_code', []))}")
-    if mvn:
-        prompt += f"\n\nKết quả mvn test:\n{mvn}"
+    if test_output:
+        prompt += f"\n\nKết quả chạy test tự động:\n{test_output}"
     out = ask("tester", "tester", state, prompt, TesterOutput)
     bugs = [b.model_dump() for b in out.bugs]
-    report = out.report + (f"\n\n## mvn test\n```\n{mvn}\n```" if mvn else "")
+    report = out.report + (f"\n\n## Test tự động\n```\n{test_output}\n```" if test_output else "")
     write_doc(f"test_report_round{iteration}.md", report)
     write_doc("test_cases.md", "| id | story | rule | steps | expected | status |\n|---|---|---|---|---|---|\n" +
               "\n".join(f"| {t.id} | {t.story_id} | {t.rule} | {t.steps} | {t.expected} | {t.status} |"

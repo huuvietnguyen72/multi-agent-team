@@ -1,29 +1,34 @@
-"""Phần dùng chung: chọn agent giả hay LLM, dựng prompt từ state."""
+"""Phần dùng chung: gọi model cho một role (theo cấu hình trong agents/providers), dựng prompt từ state."""
 from __future__ import annotations
 
 import json
-import os
 
-from agents import claude_code, llm, mock
+from agents import mock
+from agents.providers import ROLES, adapter, describe, target_for
 
-MODES = ("mock", "llm", "claude-code")
+__all__ = ["ROLES", "ask", "describe_providers", "dump", "with_project_context"]
 
 
-def mode() -> str:
-    return os.getenv("AGENT_MODE", "mock")
+def describe_providers() -> str:
+    return describe()
+
+
+def with_project_context(state, prompt: str) -> str:
+    """Chèn stack và quy ước kỹ thuật của dự án (projects/<tên>/stack.md) vào đầu prompt.
+    Skill của role giữ nguyên tắc chung; phần cụ thể của từng dự án nằm ở đây."""
+    stack = (state.get("stack") or "").strip()
+    if not stack:
+        return prompt
+    title = state.get("project_title") or "dự án"
+    return f"# Stack và quy ước kỹ thuật của {title}\n\n{stack}\n\n---\n\n{prompt}"
 
 
 def ask(role: str, node: str, state, prompt: str, schema):
-    """mock: hàm cố định trong agents/mock.py; llm: gọi Claude API bằng API key;
-    claude-code: gọi `claude -p`, dùng gói thuê bao Claude (Pro/Max) đang đăng nhập."""
-    m = mode()
-    if m == "mock":
+    """Gọi model đã chọn cho `role` (MODEL / MODEL_<ROLE> trong .env); provider mock thì dùng agents/mock.py."""
+    target = target_for(role)
+    if target.provider.type == "mock":
         return getattr(mock, node)(state)
-    if m == "claude-code":
-        return claude_code.call_structured(role, prompt, schema)
-    if m == "llm":
-        return llm.call_structured(role, prompt, schema)
-    raise ValueError(f"AGENT_MODE không hợp lệ: {m!r} (chọn một trong {', '.join(MODES)})")
+    return adapter(target.provider.type)(target, role, with_project_context(state, prompt), schema)
 
 
 def dump(obj) -> str:

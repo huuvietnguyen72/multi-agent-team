@@ -1,0 +1,9 @@
+name = "Thư viện · Module xem chi tiết sách đang mượn"
+requirements = "requirements.md"
+stack = "stack.md"
+
+[tests]
+# Chạy khi RUN_TESTS=1; cwd tính từ projects/library-borrow-detail/output/
+command = "mvn -q -B test"
+cwd = "backend"
+timeout = 600

@@ -1,69 +1,64 @@
-== Run 20261103-155304 · mode=mock · log: runs/20261103-155304.jsonl ==
+﻿== Run 20261104-011053 · Hệ thống mượn sách thư viện (projects/library/requirements.md) · mode=mock · log: runs/20261104-011053.jsonl ==
+   pm=mock · ba=mock · backend=mock · frontend=mock · reviewer=mock · tester=mock
    [plane:dry-run] tạo task [BA] 'Phân tích yêu cầu' ở Todo
-   [plane:dry-run] tạo task [BE] 'Xây REST API Spring Boot' ở Backlog
-   [plane:dry-run] tạo task [FE] 'Xây giao diện HTML/JS' ở Backlog
+   [plane:dry-run] tạo task [BE] 'Xây API backend' ở Backlog
+   [plane:dry-run] tạo task [FE] 'Xây giao diện' ở Backlog
    [plane:dry-run] tạo task [QA] 'Kiểm thử hệ thống' ở Backlog
-[2026-11-03T15:53:04] pm_plan    Tạo 4 task: Xây hệ thống mượn sách thư viện qua 4 task
+[2026-11-04T01:10:53] pm_plan    Tạo 4 task: Kịch bản mock: 4 task theo luồng phân tích → BE ‖ FE → review → test
    [plane:dry-run] chuyển local-1 sang In Progress
    [plane:dry-run] chuyển local-1 sang In Review
-   [plane:dry-run] comment lên local-1: BA nộp 6 user stories: output/docs/user_stories.md
-[2026-11-03T15:53:04] ba         Viết 6 user stories -> output/docs/user_stories.md
+   [plane:dry-run] comment lên local-1: BA nộp 3 user stories: projects/library/output/docs/user_stories.md
+[2026-11-04T01:10:53] ba         Viết 3 user stories -> projects/library/output/docs/user_stories.md
    [plane:dry-run] chuyển local-1 sang In Progress
-   [plane:dry-run] comment lên local-1: PM trả lại (vòng 1): US-03 thiếu acceptance criteria cho BR-03 (sinh viên có ...
-[2026-11-03T15:53:04] pm_review  TRẢ LẠI BA (vòng 1/3): US-03 thiếu acceptance criteria cho BR-03 (sinh viên có sách quá hạn không được mượn thêm)
+   [plane:dry-run] comment lên local-1: PM trả lại (vòng 1): US-03 thiếu acceptance criteria cho BR-03 (không xem đượ...
+[2026-11-04T01:10:53] pm_review  TRẢ LẠI BA (vòng 1/3): US-03 thiếu acceptance criteria cho BR-03 (không xem được mục của người khác)
    [plane:dry-run] chuyển local-1 sang In Progress
    [plane:dry-run] chuyển local-1 sang In Review
-   [plane:dry-run] comment lên local-1: BA nộp 6 user stories: output/docs/user_stories.md
-[2026-11-03T15:53:04] ba         Viết 6 user stories -> output/docs/user_stories.md
+   [plane:dry-run] comment lên local-1: BA nộp 3 user stories: projects/library/output/docs/user_stories.md
+[2026-11-04T01:10:53] ba         Viết 3 user stories -> projects/library/output/docs/user_stories.md
    [plane:dry-run] chuyển local-1 sang Done
-   [plane:dry-run] comment lên local-1: PM duyệt: Đủ chức năng F1-F6 và BR-01..BR-05
+   [plane:dry-run] comment lên local-1: PM duyệt: Đủ chức năng F1-F3 và BR-01..BR-03
    [plane:dry-run] tạo task [BE] 'US-01 Đăng nhập (BE)' ở Todo
    [plane:dry-run] tạo task [FE] 'US-01 Đăng nhập (FE)' ở Todo
-   [plane:dry-run] tạo task [BE] 'US-02 Tìm sách (BE)' ở Todo
-   [plane:dry-run] tạo task [FE] 'US-02 Tìm sách (FE)' ở Todo
-   [plane:dry-run] tạo task [BE] 'US-03 Mượn sách (BE)' ở Todo
-   [plane:dry-run] tạo task [FE] 'US-03 Mượn sách (FE)' ở Todo
-   [plane:dry-run] tạo task [BE] 'US-04 Xem sách đang mượn (BE)' ở Todo
-   [plane:dry-run] tạo task [FE] 'US-04 Xem sách đang mượn (FE)' ở Todo
-   [plane:dry-run] tạo task [BE] 'US-05 Xác nhận trả (BE)' ở Todo
-   [plane:dry-run] tạo task [FE] 'US-05 Xác nhận trả (FE)' ở Todo
-   [plane:dry-run] tạo task [BE] 'US-06 Quản lý sách (BE)' ở Todo
-   [plane:dry-run] tạo task [FE] 'US-06 Quản lý sách (FE)' ở Todo
-[2026-11-03T15:53:04] pm_review  DUYỆT: Đủ chức năng F1-F6 và BR-01..BR-05
+   [plane:dry-run] tạo task [BE] 'US-02 Tạo mục (BE)' ở Todo
+   [plane:dry-run] tạo task [FE] 'US-02 Tạo mục (FE)' ở Todo
+   [plane:dry-run] tạo task [BE] 'US-03 Xem mục của mình (BE)' ở Todo
+   [plane:dry-run] tạo task [FE] 'US-03 Xem mục của mình (FE)' ở Todo
+[2026-11-04T01:10:53] pm_review  DUYỆT: Đủ chức năng F1-F3 và BR-01..BR-03
    [plane:dry-run] chuyển local-2 sang In Progress
    [plane:dry-run] chuyển local-3 sang In Progress
    [plane:dry-run] chuyển local-3 sang In Review
    [plane:dry-run] comment lên local-3: FE viết bản đầu, ghi 2 file. Bản đầu
-[2026-11-03T15:53:04] frontend   viết bản đầu, ghi 2 file vào output/frontend
    [plane:dry-run] chuyển local-2 sang In Review
    [plane:dry-run] comment lên local-2: BE viết bản đầu, ghi 1 file. Bản đầu
-[2026-11-03T15:53:04] backend    viết bản đầu, ghi 1 file vào output/backend
+[2026-11-04T01:10:53] frontend   viết bản đầu, ghi 2 file vào projects/library/output/frontend
+[2026-11-04T01:10:53] backend    viết bản đầu, ghi 1 file vào projects/library/output/backend
    [plane:dry-run] chuyển local-3 sang In Progress
-   [plane:dry-run] comment lên local-3: Reviewer yêu cầu sửa: CR-01 borrow() chỉ hiện 'Có lỗi xảy ra', không hiện trư...
-[2026-11-03T15:53:04] reviewer   Vòng 1/3: 1 finding chặn -> CR-01(required, owner=frontend)
+   [plane:dry-run] comment lên local-3: Reviewer yêu cầu sửa: CR-01 createItem() chỉ hiện 'Có lỗi xảy ra', không hiện...
+[2026-11-04T01:10:53] reviewer   Vòng 1/3: 1 finding chặn -> CR-01(required, owner=frontend)
    [plane:dry-run] chuyển local-3 sang In Progress
    [plane:dry-run] chuyển local-3 sang In Review
    [plane:dry-run] comment lên local-3: FE sửa 1 finding review, ghi 2 file. Hiện lỗi từ API
-[2026-11-03T15:53:04] frontend   sửa 1 finding review, ghi 2 file vào output/frontend
+[2026-11-04T01:10:53] frontend   sửa 1 finding review, ghi 2 file vào projects/library/output/frontend
    [plane:dry-run] comment lên local-2: Reviewer duyệt (vòng 2). Không còn finding chặn
    [plane:dry-run] comment lên local-3: Reviewer duyệt (vòng 2). Không còn finding chặn
-[2026-11-03T15:53:04] reviewer   Vòng 2: DUYỆT, 1 nit
+[2026-11-04T01:10:53] reviewer   Vòng 2: DUYỆT, 1 nit
    [plane:dry-run] chuyển local-4 sang In Progress
-   [plane:dry-run] tạo task [BE] '[Bug] BUG-01 Cho mượn cuốn thứ 4 (BR-01)' ở Todo
+   [plane:dry-run] tạo task [BE] '[Bug] BUG-01 Cho tạo mục thứ 4 (BR-01)' ở Todo
    [plane:dry-run] chuyển local-2 sang In Progress
    [plane:dry-run] comment lên local-4: Vòng 1: 1 bug
-[2026-11-03T15:53:04] tester     Vòng 1: 1 TC, 1 bug -> BUG-01(BR-01, owner=backend)
+[2026-11-04T01:10:53] tester     Vòng 1: 1 TC, 1 bug -> BUG-01(BR-01, owner=backend)
    [plane:dry-run] chuyển local-2 sang In Progress
    [plane:dry-run] chuyển local-2 sang In Review
    [plane:dry-run] comment lên local-2: BE sửa 1 bug, ghi 1 file. Sửa BR-01
-[2026-11-03T15:53:04] backend    sửa 1 bug, ghi 1 file vào output/backend
+[2026-11-04T01:10:53] backend    sửa 1 bug, ghi 1 file vào projects/library/output/backend
    [plane:dry-run] comment lên local-2: Reviewer duyệt (vòng 1). Không còn finding chặn
    [plane:dry-run] comment lên local-3: Reviewer duyệt (vòng 1). Không còn finding chặn
-[2026-11-03T15:53:04] reviewer   Vòng 1: DUYỆT, 1 nit
+[2026-11-04T01:10:53] reviewer   Vòng 1: DUYỆT, 1 nit
    [plane:dry-run] chuyển local-4 sang In Progress
    [plane:dry-run] comment lên local-4: Vòng 2: PASS 1 test case
    [plane:dry-run] chuyển local-4 sang Done
-[2026-11-03T15:53:04] tester     Vòng 2: PASS 1 test case
+[2026-11-04T01:10:53] tester     Vòng 2: PASS 1 test case
    [plane:dry-run] chuyển local-2 sang Done
    [plane:dry-run] chuyển local-3 sang Done
    [plane:dry-run] chuyển local-4 sang Done
@@ -71,7 +66,7 @@
    [plane:dry-run] comment lên local-2: Nghiệm thu: ACCEPTED. Kết thúc sau 1 lần trả BA, 2 vòng test
    [plane:dry-run] comment lên local-3: Nghiệm thu: ACCEPTED. Kết thúc sau 1 lần trả BA, 2 vòng test
    [plane:dry-run] comment lên local-4: Nghiệm thu: ACCEPTED. Kết thúc sau 1 lần trả BA, 2 vòng test
-[2026-11-03T15:53:04] pm_accept  ACCEPTED: Kết thúc sau 1 lần trả BA, 2 vòng test
+[2026-11-04T01:10:53] pm_accept  ACCEPTED: Kết thúc sau 1 lần trả BA, 2 vòng test
 
 == Kết quả: ACCEPTED sau 15 bước, 1 lần trả BA, 2 vòng test ==
-Đầu ra: output/  ·  Log: runs/  ·  Sơ đồ: docs/graph.mmd
+Đầu ra: projects/library/output  ·  Log: runs/  ·  Sơ đồ: docs/graph.mmd
