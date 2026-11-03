@@ -29,6 +29,7 @@ copy .env.example .env
 ```powershell
 python main.py --mode mock     # agent giả, không tốn token: PM trả BA 1 lần, Reviewer trả FE 1 lần, bug BR-01, sửa, PASS
 python main.py --mode llm      # gọi Claude thật (cần ANTHROPIC_API_KEY trong .env)
+python main.py --mode claude-code  # gọi Claude qua `claude -p`, dùng gói thuê bao Pro/Max (không cần API key)
 python main.py --draw          # chỉ in sơ đồ Mermaid
 python -m pytest -q tests      # kiểm tra luật định tuyến + 1 lần chạy mock
 ```
@@ -52,10 +53,15 @@ Tạo project trên Plane với 5 state (Backlog, Todo, In Progress, In Review, 
 
 ## LLM
 
-Mặc định `claude-opus-5-5`, effort `medium`. Đặt `LLM_EFFORT=low` khi thử để rẻ hơn, hoặc `MODEL_<ROLE>` để dùng model khác cho từng role. Có bật fallback phía server: nếu một yêu cầu bị bộ lọc an toàn từ chối, API tự chạy lại trên model dự phòng. Đầu ra sai schema được thử lại 1 lần rồi dừng.
+Có hai cách gọi Claude thật:
+
+- `--mode llm` (`agents/llm.py`): Claude API qua thư viện `anthropic`, cần `ANTHROPIC_API_KEY`, tính tiền theo token.
+- `--mode claude-code` (`agents/claude_code.py`): mỗi agent là một tiến trình `claude -p` với `skills/<role>/SKILL.md` làm system prompt, không có tool, đầu ra ép theo JSON Schema từ `schemas.py`. Dùng đăng nhập claude.ai của Claude Code (gói Pro/Max), nên cần cài Claude Code và `/login` trước. `ANTHROPIC_API_KEY`/`ANTHROPIC_AUTH_TOKEN` bị bỏ qua ở chế độ này để không chuyển sang tính tiền API. Lượt dùng tính vào hạn mức của gói (chung với lúc chat trong Claude Code); chạm giới hạn thì bước đang chạy báo lỗi và graph dừng. Model đặt bằng `CC_MODEL` (mặc định `sonnet`) hoặc `CC_MODEL_<ROLE>`, effort dùng chung `LLM_EFFORT`.
+
+Chế độ `llm`: mặc định `claude-opus-5-5`, effort `medium`. Đặt `LLM_EFFORT=low` khi thử để rẻ hơn, hoặc `MODEL_<ROLE>` để dùng model khác cho từng role. Có bật fallback phía server: nếu một yêu cầu bị bộ lọc an toàn từ chối, API tự chạy lại trên model dự phòng. Đầu ra sai schema được thử lại 1 lần rồi dừng.
 
 ## Skills
 
-Mỗi role có một `skills/<role>/SKILL.md`. Nội dung quy trình được rút gọn và chỉnh từ [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills) (MIT, xem `THIRD_PARTY_NOTICES.md`), cộng với quy tắc riêng của đề thư viện. Khi gọi LLM, frontmatter được bỏ đi và phần còn lại làm system prompt (có prompt caching).
+Mỗi role có một `skills/<role>/SKILL.md`. Nội dung quy trình được rút gọn và chỉnh từ [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills) (MIT, xem `THIRD_PARTY_NOTICES.md`), cộng với quy tắc riêng của đề thư viện. Chế độ `llm` bỏ frontmatter rồi dùng phần còn lại làm system prompt (có prompt caching); chế độ `claude-code` nạp nguyên file.
 
 Thêm một role mới: tạo `skills/<role>/SKILL.md` cùng định dạng, thêm schema đầu ra trong `schemas.py`, một file trong `agents/`, một hàm giả trong `agents/mock.py`, rồi nối node vào `graph.py`.
