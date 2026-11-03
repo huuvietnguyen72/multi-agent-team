@@ -54,6 +54,22 @@ class FrontendOutput(BaseModel):
     notes: str = ""
 
 
+class ReviewFinding(BaseModel):
+    id: str = Field(description="CR-01, CR-02, ...")
+    severity: Literal["critical", "required", "nit"] = Field(
+        description="critical/required chặn, phải sửa trước khi test; nit không chặn")
+    owner: Literal["backend", "frontend"]
+    file: str
+    detail: str
+    suggestion: str
+
+
+class ReviewOutput(BaseModel):
+    approved: bool = Field(description="true khi không còn finding critical hoặc required")
+    findings: list[ReviewFinding]
+    summary: str
+
+
 class TestCase(BaseModel):
     id: str = Field(description="TC-01, TC-02, ...")
     story_id: str

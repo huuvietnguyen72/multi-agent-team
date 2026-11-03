@@ -42,4 +42,6 @@ def tester(state):
         summary = f"Vòng {iteration}: PASS {len(out.test_cases)} test case"
     entry = log_step(state["run_id"], "tester", summary)
     return {"test_cases": [t.model_dump() for t in out.test_cases], "test_report": report, "bugs": bugs,
-            "iteration": iteration, "plane_tasks": tasks, "log": [entry]}
+            "iteration": iteration, "plane_tasks": tasks, "log": [entry],
+            # Bản sửa bug sẽ qua Reviewer lại; mỗi vòng test có tối đa MAX_ROUNDS vòng review
+            "code_review_round": 0}

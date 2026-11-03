@@ -22,7 +22,13 @@ def client() -> anthropic.Anthropic:
 
 
 def load_skill(role: str) -> str:
-    return (SKILLS / role / "SKILL.md").read_text(encoding="utf-8")
+    """Đọc skills/<role>/SKILL.md, bỏ frontmatter (name, description) trước khi làm system prompt."""
+    text = (SKILLS / role / "SKILL.md").read_text(encoding="utf-8")
+    if text.startswith("---"):
+        end = text.find("\n---", 3)
+        if end != -1:
+            text = text[end + 4:]
+    return text.lstrip()
 
 
 def model_for(role: str) -> str:
@@ -39,7 +45,8 @@ def call_structured(role: str, prompt: str, schema: type[T]) -> T:
             with client().beta.messages.stream(
                 model=model_for(role),
                 max_tokens=64000,
-                system=load_skill(role),
+                # Skill không đổi giữa các lượt gọi nên được cache, giảm chi phí các vòng lặp sau.
+                system=[{"type": "text", "text": load_skill(role), "cache_control": {"type": "ephemeral"}}],
                 messages=[{"role": "user", "content": prompt}],
                 output_format=schema,
                 output_config={"effort": os.getenv("LLM_EFFORT", "medium")},

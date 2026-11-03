@@ -3,14 +3,16 @@
 Kịch bản dựng sẵn để demo đủ 2 vòng lặp:
 - Vòng review 1: BA thiếu tiêu chí cho BR-03, PM trả lại.
 - Vòng review 2: BA bổ sung, PM duyệt.
+- Review vòng 1: frontend không hiện thông báo lỗi từ API, Reviewer trả frontend.
+- Review vòng 2: frontend đã sửa, Reviewer duyệt.
 - Test vòng 1: backend chưa kiểm tra BR-01, Tester báo bug owner=backend.
-- Test vòng 2: backend đã sửa, Tester PASS, PM nghiệm thu.
+- Backend sửa, Reviewer duyệt lại, test vòng 2 PASS, PM nghiệm thu.
 """
 from __future__ import annotations
 
 from tools.file_tools import read_files
 from schemas import (BackendOutput, BAOutput, Bug, CodeFile, FrontendOutput, PlanTask, PMAccept,
-                     PMPlan, PMReview, TestCase, TesterOutput, UserStory)
+                     PMPlan, PMReview, ReviewFinding, ReviewOutput, TestCase, TesterOutput, UserStory)
 
 
 def pm_plan(state) -> PMPlan:
@@ -76,7 +78,29 @@ def backend(state) -> BackendOutput:
 
 
 def frontend(state) -> FrontendOutput:
-    return FrontendOutput(files=[CodeFile(path="index.html", content="<!doctype html><h1>Thư viện</h1>\n")])
+    fixed = any(f["owner"] == "frontend" for f in state.get("review_findings", []))
+    on_error = ("showError(body.error)" if fixed else 'alert("Có lỗi xảy ra")')
+    app = ("const API_BASE = \"http://localhost:8080/api\";\n"
+           "async function borrow(bookId) {\n"
+           "  const res = await fetch(`${API_BASE}/borrow`, {method: \"POST\"});\n"
+           "  const body = await res.json();\n"
+           f"  if (!res.ok) {on_error};\n"
+           "}\n")
+    return FrontendOutput(files=[CodeFile(path="index.html", content="<!doctype html><h1>Thư viện</h1>\n"),
+                                 CodeFile(path="app.js", content=app)],
+                          notes="Hiện lỗi từ API" if fixed else "Bản đầu")
+
+
+def reviewer(state) -> ReviewOutput:
+    code = read_files(state.get("frontend_code", []))
+    if "showError(body.error)" in code:
+        return ReviewOutput(approved=True, summary="Không còn finding chặn", findings=[
+            ReviewFinding(id="CR-02", severity="nit", owner="backend", file="BorrowService.java",
+                          detail="Nên tách hằng số 3 thành MAX_BORROWS", suggestion="Thêm hằng số")])
+    return ReviewOutput(approved=False, summary="Frontend nuốt thông báo lỗi từ API", findings=[
+        ReviewFinding(id="CR-01", severity="required", owner="frontend", file="app.js",
+                      detail="borrow() chỉ hiện 'Có lỗi xảy ra', không hiện trường error (vd 'Vượt quá 3 cuốn')",
+                      suggestion="Hiển thị body.error cho người dùng")])
 
 
 def tester(state) -> TesterOutput:
@@ -91,4 +115,5 @@ def tester(state) -> TesterOutput:
 
 def pm_accept(state) -> PMAccept:
     status = "ACCEPTED" if not state.get("bugs") and state.get("approved") else "NEEDS_HUMAN_REVIEW"
-    return PMAccept(final_status=status, summary=f"Kết thúc sau {state.get('iteration', 0)} vòng test")
+    return PMAccept(final_status=status, summary=f"Kết thúc sau {state.get('review_round', 0)} lần trả BA, "
+                                                 f"{state.get('iteration', 0)} vòng test")

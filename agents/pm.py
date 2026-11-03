@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from agents.common import ask, dump
 from schemas import PMAccept, PMPlan, PMReview
-from state import MAX_ROUNDS
+from state import MAX_ROUNDS, blocking_findings
 from tools.file_tools import write_doc
 from tools.plane_client import plane
 from tools.runlog import log_step
@@ -18,7 +18,8 @@ def pm_plan(state):
         tasks[t.key] = plane.create_task(t.title, t.role, st, t.description)
     entry = log_step(state["run_id"], "pm_plan", f"Tạo {len(out.tasks)} task: {out.summary}")
     return {"plan": [t.model_dump() for t in out.tasks], "plane_tasks": tasks,
-            "review_round": 0, "iteration": 0, "bugs": [], "log": [entry]}
+            "review_round": 0, "iteration": 0, "bugs": [],
+            "code_review_round": 0, "review_findings": [], "log": [entry]}
 
 
 def pm_review(state):
@@ -50,6 +51,8 @@ def pm_review(state):
 def pm_accept(state):
     prompt = (f"Tổng kết dự án.\nSố vòng review: {state.get('review_round', 0)}\n"
               f"Duyệt phân tích: {state.get('approved')}\nSố vòng test: {state.get('iteration', 0)}\n"
+              f"Review code: {state.get('review_summary', '')}\n"
+              f"Finding chặn tồn đọng: {dump(blocking_findings(state))}\n"
               f"Bug tồn đọng: {dump(state.get('bugs', []))}\nTest report:\n{state.get('test_report', '')}")
     out = ask("pm", "pm_accept", state, prompt, PMAccept)
     tasks = state["plane_tasks"]
