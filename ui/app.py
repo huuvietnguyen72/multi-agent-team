@@ -31,6 +31,7 @@ from agents.providers import (ESCALATABLE, ROLES, default_specs, escalation_spec
 from tools.project import list_projects, load_project  # noqa: E402
 from tools.run import format_models, prepare_run  # noqa: E402
 from ui.runner import exclusive_run, stream_events  # noqa: E402
+from ui.turns import Turns, file_changes  # noqa: E402
 from ui.view import (AUTHORS, Progress, changed_files, files_for, language_for, message_for, redact,  # noqa: E402
                      secret_values, snapshot, summary_text)
 
@@ -41,6 +42,7 @@ TASK_STATUS = {"ready": cl.TaskStatus.READY, "running": cl.TaskStatus.RUNNING,
                "done": cl.TaskStatus.DONE, "failed": cl.TaskStatus.FAILED}
 MAX_FILE_CHARS = 100_000
 TICK_SECONDS = 5
+PANEL_MIN_INTERVAL = 1.0  # cập nhật khung Chi tiết tối đa một lần mỗi giây khi có sự kiện bước
 
 
 def _project_title(name: str) -> str:
@@ -135,7 +137,7 @@ async def _send_tasks(task_list: cl.TaskList, progress: Progress, status: str) -
     await task_list.send()
 
 
-def _file_actions(paths: list[Path], out_dir: Path, step: int) -> list[cl.Action]:
+def _file_actions(paths: list[Path], out_dir: Path, step: int, stats: dict[str, tuple[int, int]]) -> list[cl.Action]:
     """Một nút cho mỗi file của bước; bấm thì nội dung mở ở khung bên phải (FR-08).
     Nội dung được giữ lại đúng như lúc bước này xong, nên bấm lại sau vẫn thấy bản của bước đó."""
     files = cl.user_session.get("files") or {}
@@ -150,7 +152,9 @@ def _file_actions(paths: list[Path], out_dir: Path, step: int) -> list[cl.Action
         rel = p.relative_to(out_dir).as_posix()
         key = f"{step}:{rel}"
         files[key] = (rel, text, language_for(p))
-        actions.append(cl.Action(name="show_file", payload={"key": key}, label=rel, icon="file-text"))
+        added, removed = stats.get(rel, (0, 0))
+        label = f"{rel}  +{added} -{removed}" if added or removed else rel
+        actions.append(cl.Action(name="show_file", payload={"key": key}, label=label, icon="file-text"))
     cl.user_session.set("files", files)
     return actions
 
@@ -165,13 +169,47 @@ async def on_show_file(action: cl.Action):
     await cl.ElementSidebar.set_title(rel)
 
 
+def _detail_action(author: str) -> cl.Action:
+    return cl.Action(name="show_role", payload={"role": author}, label="Chi tiết", icon="list")
+
+
+async def _show_panel(role: str) -> None:
+    turns: Turns = cl.user_session.get("turns") or Turns()
+    el = cl.CustomElement(name="RoleDetail", props=turns.props(role, time.monotonic()), display="side")
+    cl.user_session.set("panel", {"role": role, "element": el, "sent": time.monotonic()})
+    await cl.ElementSidebar.set_elements([el])
+    await cl.ElementSidebar.set_title(f"Chi tiết {role}")
+
+
+async def _refresh_panel(role: str, force: bool = True) -> None:
+    """Vẽ lại khung Chi tiết nếu nó đang mở cho `role` (FR-13, FR-14)."""
+    panel = cl.user_session.get("panel")
+    if not panel or panel["role"] != role:
+        return
+    if not force and time.monotonic() - panel["sent"] < PANEL_MIN_INTERVAL:
+        return
+    await _show_panel(role)
+
+
+@cl.action_callback("show_role")
+async def on_show_role(action: cl.Action):
+    await _show_panel(action.payload.get("role") or "PM")
+
+
+@cl.action_callback("close_role")
+async def on_close_role(action: cl.Action):
+    cl.user_session.set("panel", None)
+    await cl.ElementSidebar.set_elements([])
+
+
 async def _tick(msg: cl.Message, author: str, started: float) -> None:
-    """Cập nhật số giây của tin tạm "đang làm…" (FR-07)."""
+    """Cập nhật số giây của tin tạm "đang làm…" (FR-07) và của khung Chi tiết nếu đang mở."""
     try:
         while True:
             await asyncio.sleep(TICK_SECONDS)
             msg.content = f"_{author} đang làm… {int(time.monotonic() - started)} giây_"
             await msg.update()
+            await _refresh_panel(author)
     except asyncio.CancelledError:
         pass
 
@@ -220,6 +258,8 @@ async def _run(setup, *, mock: bool, delay: float) -> None:
     cl.user_session.set("stop", stop)
     secrets = secret_values(load_providers())
     progress = Progress()
+    turns = Turns()
+    cl.user_session.set("turns", turns)
     task_list = cl.TaskList()
     await _send_tasks(task_list, progress, "Đang chạy")
     await cl.Message(content=f"Bắt đầu lượt `{setup.run_id}` · {format_models(setup)}").send()
@@ -237,12 +277,17 @@ async def _run(setup, *, mock: bool, delay: float) -> None:
         if event.kind == "start":
             author = AUTHORS.get(node, node)
             progress.start(node)
+            turns.start(node, event.data or {}, time.monotonic())
             before[node] = snapshot(out_dir)
-            msg = cl.Message(author=author, content=f"_{author} đang làm…_")
+            msg = cl.Message(author=author, content=f"_{author} đang làm…_", actions=[_detail_action(author)])
             await msg.send()
             placeholders[node] = msg
             tickers[node] = asyncio.create_task(_tick(msg, author, time.monotonic()))
             await _send_tasks(task_list, progress, "Đang chạy")
+            await _refresh_panel(author)
+        elif event.kind == "progress":
+            turns.progress(node, event.data or {})
+            await _refresh_panel(AUTHORS.get(node, node), force=False)
         elif event.kind == "done":
             if mock and delay > 0:
                 # chạy mock xong ngay, nên giữ tin "đang làm…" thêm một lúc để người xem kịp thấy ai đang làm;
@@ -252,16 +297,24 @@ async def _run(setup, *, mock: bool, delay: float) -> None:
                 t.cancel()
             progress.finish(node, event.update)
             step += 1
-            files = files_for(node, changed_files(before.pop(node, {}), snapshot(out_dir)), out_dir)
-            actions = _file_actions(files, out_dir, step)
+            snap_before, snap_after = before.pop(node, {}), snapshot(out_dir)
+            files = files_for(node, changed_files(snap_before, snap_after), out_dir)
+            changes = file_changes(node, snap_before, snap_after, out_dir)
+            log_data = ((event.update.get("log") or [{}])[-1] or {}).get("data") or {}
+            turns.finish(node, changes, log_data, time.monotonic())
+            actions = _file_actions(files, out_dir, step, {c.path: (c.added, c.removed) for c in changes})
+            actions.append(_detail_action(AUTHORS.get(node, node)))
             content = message_for(node, event.update)
             if (old := placeholders.pop(node, None)) is not None:
                 await old.remove()
             await cl.Message(author=AUTHORS.get(node, node), content=content, actions=actions).send()
             await _send_tasks(task_list, progress, "Đang chạy")
+            await _refresh_panel(AUTHORS.get(node, node))
         elif event.kind == "error":
             if node:
                 progress.fail(node)
+                turns.fail(node, time.monotonic())
+                await _refresh_panel(AUTHORS.get(node, node))
                 if (t := tickers.pop(node, None)) is not None:
                     t.cancel()
             text = "Lỗi: " + redact(event.message or "", secrets)

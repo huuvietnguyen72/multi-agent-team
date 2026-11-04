@@ -7,7 +7,7 @@ import time
 from agents import mock
 from agents.escalation import pick_target
 from agents.providers import ROLES, adapter, describe
-from tools.runlog import set_call_info
+from tools.runlog import progress, set_call_info
 
 __all__ = ["ROLES", "ask", "describe_providers", "dump", "with_project_context"]
 
@@ -33,6 +33,7 @@ def ask(role: str, node: str, state, prompt: str, schema):
     target, before = pick_target(role, state)
     if before:
         print(f"   ↑ {role}: đổi từ {before} sang {target.label} vì đây là vòng sửa cuối")
+    progress("model", model=target.label, **({"escalated_from": before} if before else {}))
     start = time.monotonic()
     try:
         if target.provider.type == "mock":

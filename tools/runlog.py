@@ -18,6 +18,18 @@ def set_call_info(info: dict) -> None:
     _CALL_INFO.set(dict(info))
 
 
+def progress(phase: str, **data) -> None:
+    """Báo bước bên trong node đang chạy cho giao diện: "read" | "model" | "stream" | "write".
+    Gửi {"node", "phase", **data} qua stream "custom" của LangGraph; gọi ngoài graph thì bỏ qua."""
+    try:
+        from langgraph.config import get_config, get_stream_writer
+        node = get_config()["metadata"]["langgraph_node"]
+        writer = get_stream_writer()
+    except (RuntimeError, KeyError, ImportError):
+        return
+    writer({"node": node, "phase": phase, **data})
+
+
 def log_step(run_id: str, node: str, summary: str, data: dict | None = None) -> dict:
     info = _CALL_INFO.get()
     _CALL_INFO.set(None)

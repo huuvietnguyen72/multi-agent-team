@@ -115,8 +115,12 @@ def message_for(node: str, update: dict) -> str:
     return _body(node, update, entry.get("summary", "")) + "\n\n" + _footer(entry.get("data") or {})
 
 
-def snapshot(output_dir: Path) -> dict[Path, tuple[int, int]]:
-    """file -> (mtime_ns, size). Thư mục chưa có thì trả {}."""
+MAX_TEXT_BYTES = 1_000_000
+
+
+def snapshot(output_dir: Path) -> dict[Path, tuple[int, int, str | None]]:
+    """file -> (mtime_ns, size, nội dung UTF-8). Nội dung là None khi file nhị phân hoặc lớn hơn
+    MAX_TEXT_BYTES. Thư mục chưa có thì trả {}."""
     root = Path(output_dir)
     if not root.is_dir():
         return {}
@@ -124,13 +128,19 @@ def snapshot(output_dir: Path) -> dict[Path, tuple[int, int]]:
     for p in root.rglob("*"):
         if p.is_file():
             st = p.stat()
-            out[p] = (st.st_mtime_ns, st.st_size)
+            text = None
+            if st.st_size <= MAX_TEXT_BYTES:
+                try:
+                    text = p.read_text(encoding="utf-8")
+                except (UnicodeDecodeError, OSError):
+                    text = None
+            out[p] = (st.st_mtime_ns, st.st_size, text)
     return out
 
 
 def changed_files(before: dict, after: dict) -> list[Path]:
     """File mới, hoặc file có (mtime_ns, size) khác lần chụp trước."""
-    return sorted(p for p, sig in after.items() if before.get(p) != sig)
+    return sorted(p for p, sig in after.items() if p not in before or before[p][:2] != sig[:2])
 
 
 def files_for(node: str, changed: list[Path], output_dir: Path) -> list[Path]:
