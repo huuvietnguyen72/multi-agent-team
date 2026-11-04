@@ -86,12 +86,14 @@ def prepare_run(project: str, requirements: str | None = None, *,
                     models=used, escalate=last, problems=problems, real_model=real)
 
 
-def format_models(setup: RunSetup) -> str:
+def format_models(setup: RunSetup, code: bool = False) -> str:
     """'pm=claude-code:sonnet · ... · backend=opencode-go:glm-5.3 (vòng cuối: claude-code:opus) · ...'"""
     parts = []
     for role in ROLES:
-        label = setup.models.get(role, "LỖI")
-        if role in setup.escalate and setup.escalate[role] != label and label != "mock":
-            label += f" (vòng cuối: {setup.escalate[role]})"
+        model = setup.models.get(role, "LỖI")
+        q = (lambda m: f"`{m}`") if code else (lambda m: m)  # markdown đọc ":tên" là directive, nên bọc code
+        label = q(model)
+        if role in setup.escalate and setup.escalate[role] != model and model != "mock":
+            label += f" (vòng cuối: {q(setup.escalate[role])})"
         parts.append(f"{role}={label}")
     return " · ".join(parts)

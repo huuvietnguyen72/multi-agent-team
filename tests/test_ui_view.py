@@ -30,7 +30,7 @@ def mock_updates(tmp_path, monkeypatch):
 
 def test_message_for_every_mock_step(mock_updates):
     msgs = [(node, message_for(node, upd)) for node, upd in mock_updates]
-    assert all(m.strip() and "model: mock" in m for _, m in msgs)
+    assert all(m.strip() and "_model:_ `mock`" in m for _, m in msgs)
     assert "CR-01" in next(m for n, m in msgs if n == "reviewer")
     assert "BUG-01" in next(m for n, m in msgs if n == "tester")
     assert "ACCEPTED" in next(m for n, m in msgs if n == "pm_accept")
