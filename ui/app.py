@@ -34,11 +34,12 @@ from chainlit.input_widget import Select, Slider, Switch, TextInput  # noqa: E40
 from graph import build_graph  # noqa: E402
 from agents.providers import (ESCALATABLE, ROLES, default_specs, escalation_specs, load_providers,  # noqa: E402
                               model_choices)
-from tools.project import list_projects, load_project, write_project  # noqa: E402
+from tools.project import list_projects, load_module, load_project, write_module, write_project  # noqa: E402
 from tools.file_tools import display  # noqa: E402
 from tools.run import archive_output, format_models, prepare_run  # noqa: E402
 from ui.code import read_file, source_for_run, source_root, sources, tree  # noqa: E402
-from ui.projects import description, draft_project, overview, unique_slug  # noqa: E402
+from ui.projects import (MODULE_TAG, description, draft_module, draft_project, modules_of, overview,  # noqa: E402
+                         unique_slug)
 from ui.manager import Command, ask_manager, build_patch, command_from, manager_spec, validate  # noqa: E402
 from ui.runner import RunControl, exclusive_run, stream_events  # noqa: E402
 from ui.turns import Turns, file_changes  # noqa: E402
@@ -169,9 +170,38 @@ async def _sidebar(elements: list, title: str) -> None:
     asyncio.create_task(again())
 
 
-def _project_actions() -> list[cl.Action]:
-    return [cl.Action(name="run", payload={}, label="Chạy"), _code_action(),
-            cl.Action(name="project_edit", payload={}, label="Yêu cầu và stack", icon="file-pen")]
+def _project_actions(name: str | None = None) -> list[cl.Action]:
+    """Nút trên trang dự án. Có `name` thì thêm một nút cho mỗi module chưa có cuộc chat (module đã có cuộc chat
+    thì trang dự án có đường dẫn tới cuộc chat đó)."""
+    actions = [cl.Action(name="run", payload={}, label="Chạy cả dự án"),
+               cl.Action(name="module_new", payload={}, label="+ Module mới", icon="plus"), _code_action(),
+               cl.Action(name="project_edit", payload={}, label="Yêu cầu và stack", icon="file-pen")]
+    if name:
+        actions += [cl.Action(name="module_open", payload={"name": m["name"]}, label=f"Module: {m['title']}",
+                              icon="square-stack") for m in modules_of(name, _user_id()) if not m["thread"]]
+    return actions
+
+
+def _module_actions() -> list[cl.Action]:
+    return [cl.Action(name="run", payload={}, label="Chạy module"), _code_action(),
+            cl.Action(name="module_edit", payload={}, label="Yêu cầu module", icon="file-pen")]
+
+
+def _module():
+    """Module của cuộc chat này (None nếu cuộc chat làm cả dự án)."""
+    project, name = cl.user_session.get("project"), cl.user_session.get("module")
+    if not (project and name):
+        return None
+    try:
+        return load_module(project, name)
+    except FileNotFoundError:
+        return None
+
+
+def _chat_title() -> str:
+    """Tên gốc của cuộc chat: tên module, hoặc tên dự án."""
+    m = _module()
+    return m.title if m else _project_title(cl.user_session.get("project") or "")
 
 
 def _user_id() -> str:
@@ -189,10 +219,12 @@ async def _send_settings() -> str | None:
 async def _project_home(name: str) -> None:
     """Tin chào của dự án: tổng quan, các lượt và cuộc chat trước, nút Chạy / Mã nguồn / Yêu cầu và stack."""
     text = overview(name, _user_id(), current_thread=cl.context.session.thread_id)
-    text += ("\n\n---\nBấm **Chạy** để team bắt đầu. Bánh răng cạnh ô nhập: đổi model từng role hoặc bật chạy thử "
-             "(mock). Trong lúc chạy, gõ vào ô nhập để hỏi Quản lý hoặc ra lệnh như \"dừng lại\", \"bỏ qua CR-02\". "
-             "Đổi dự án hoặc tạo dự án mới ở ô chọn trên cùng.")
-    await cl.Message(content=text, actions=_project_actions()).send()
+    text += ("\n\n---\nLàm từng phần: bấm **+ Module mới**, mô tả phần cần làm, PM soạn yêu cầu cho anh duyệt, rồi "
+             "chạy trong một cuộc chat riêng. Lượt chạy module giữ code đang có và làm tiếp trên đó. **Chạy cả dự án** "
+             "thì team làm lại từ đầu theo `requirements.md` (code cũ chuyển sang lượt trước). Bánh răng cạnh ô nhập: "
+             "đổi model từng role hoặc bật chạy thử (mock). Trong lúc chạy, gõ vào ô nhập để hỏi Quản lý hoặc ra lệnh "
+             "như \"dừng lại\", \"bỏ qua CR-02\".")
+    await cl.Message(content=text, actions=_project_actions(name)).send()
 
 
 @cl.on_chat_start
@@ -200,6 +232,7 @@ async def on_chat_start():
     profile = cl.user_session.get("chat_profile")
     names = list_projects()
     cl.user_session.set("stop", threading.Event())
+    cl.user_session.set("module", None)
     esc_error = await _send_settings()
     if profile in names:
         cl.user_session.set("project", profile)
@@ -234,31 +267,43 @@ async def _show_editor(mode: str, data: dict, error: str = "") -> None:
     props = {"mode": mode, "version": version, "error": error, **{k: data.get(k, "") for k in
              ("name", "title", "requirements", "stack", "test_command")}}
     cl.user_session.set("panel", {"kind": "editor"})
-    title = "Dự án mới" if mode == "create" else f"Sửa dự án · {data.get('title', '')}"
+    title = {"create": "Dự án mới", "module": "Module mới"}.get(mode) or \
+        f"{'Sửa module' if mode == 'module_edit' else 'Sửa dự án'} · {data.get('title', '')}"
     await _sidebar([cl.CustomElement(name="ProjectEditor", props=props, display="side")], title)
 
 
-async def _draft(idea: str) -> None:
+async def _draft(idea: str, module: bool = False) -> None:
+    """PM soạn bản nháp dự án mới (hoặc module mới của dự án đang mở) từ `idea`, rồi mở khung soạn."""
     settings = cl.user_session.get("settings") or {}
     previous = _get_unsaved("draft")
     started = time.monotonic()
-    wait = cl.Message(author="PM", content="_PM đang soạn dự án…_")
+    project = cl.user_session.get("project")
+    wait = cl.Message(author="PM", content=f"_PM đang soạn {'module' if module else 'dự án'}…_")
     await wait.send()
     try:
-        draft, label = await cl.make_async(draft_project)(idea, previous=previous, spec=_draft_model(settings))
+        if module:
+            draft, label = await cl.make_async(draft_module)(project, idea, previous=previous,
+                                                             spec=_draft_model(settings))
+        else:
+            draft, label = await cl.make_async(draft_project)(idea, previous=previous, spec=_draft_model(settings))
     except Exception as e:
         await wait.remove()
         await cl.Message(author="PM", content="Không soạn được: " +
                          redact(f"{type(e).__name__}: {e}", secret_values(load_providers()))).send()
         return
     data = draft.model_dump()
-    data["name"] = (previous or {}).get("name") or unique_slug(draft.slug or draft.title)
+    if module:
+        folder = load_project(project).dir / "modules"
+        data["name"] = (previous or {}).get("name") or unique_slug(draft.slug or draft.title, folder, ".md")
+    else:
+        data["name"] = (previous or {}).get("name") or unique_slug(draft.slug or draft.title)
     _set_unsaved("draft", data)
     await wait.remove()  # gửi tin mới thay vì sửa tin chờ: tin sửa ngay sau khi gửi có thể không vào lịch sử
+    button = "Lưu module" if module else "Lưu và tạo dự án"
     await cl.Message(author="PM", content=f"{draft.reply}\n\nBản nháp **{draft.title}** đã mở ở khung bên phải. Sửa "
-                     f"trực tiếp rồi bấm **Lưu và tạo dự án**, hoặc gõ yêu cầu sửa để PM soạn lại."
+                     f"trực tiếp rồi bấm **{button}**, hoặc gõ yêu cầu sửa để PM soạn lại."
                      f"\n\n_model:_ `{label}` _· {time.monotonic() - started:.0f} giây_").send()
-    await _show_editor("create", data)
+    await _show_editor("module" if module else "create", data)
 
 
 def _name_once() -> None:
@@ -267,7 +312,7 @@ def _name_once() -> None:
     name = cl.user_session.get("project")
     if name and not cl.user_session.get("named"):
         cl.user_session.set("named", True)
-        asyncio.create_task(_name_thread(_project_title(name), wait=1.0))
+        asyncio.create_task(_name_thread(_chat_title(), wait=1.0))
 
 
 @cl.action_callback("project_edit")
@@ -286,6 +331,9 @@ async def on_project_edit(action: cl.Action):
 @cl.action_callback("project_save")
 async def on_project_save(action: cl.Action):
     d = action.payload or {}
+    if d.get("mode") in ("module", "module_edit"):
+        await _save_module(d)
+        return
     create = d.get("mode") == "create"
     name = (d.get("name") or "").strip() if create else cl.user_session.get("project")
     try:
@@ -303,9 +351,88 @@ async def on_project_save(action: cl.Action):
     _set_unsaved("draft", None)
     await cl.ElementSidebar.set_elements([])
     await _name_thread(p.title, tag=p.name)
-    await cl.Message(content=f"Đã tạo dự án **{p.title}** ở `projects/{p.name}/`. Bấm **Chạy** để team bắt đầu ngay "
-                             "trong cuộc chat này. Lần sau mở dự án ở ô chọn trên cùng (tải lại trang để thấy nó).",
+    await cl.Message(content=f"Đã tạo dự án **{p.title}** ở `projects/{p.name}/`. Bấm **Chạy cả dự án** để team làm "
+                             "ngay trong cuộc chat này, hoặc **+ Module mới** để làm từng phần. Lần sau mở dự án ở ô "
+                             "chọn trên cùng (tải lại trang để thấy nó).",
                      actions=_project_actions()).send()
+
+
+# ---------- module: mỗi module một cuộc chat ----------
+
+@cl.action_callback("module_new")
+async def on_module_new(action: cl.Action):
+    project = cl.user_session.get("project")
+    if not project:
+        await cl.Message(content="Chọn một dự án ở ô trên cùng trước.").send()
+        return
+    if cl.user_session.get("module") or cl.user_session.get("run_ref"):
+        await cl.Message(content="Cuộc chat này đã dùng cho một lượt chạy. Mở cuộc chat mới (nút bút chì ở góc trái, "
+                                 "rồi chọn dự án) để tạo module, mỗi module một cuộc chat.").send()
+        return
+    _name_once()
+    cl.user_session.set("mode", "module")
+    _set_unsaved("draft", None)
+    await cl.Message(content=f"## Module mới của {_project_title(project)}\n\nMô tả phần anh muốn làm tiếp trong vài "
+                             "câu: chức năng nào, cho ai, quy tắc gì. PM soạn yêu cầu của module ở khung bên phải để "
+                             "anh sửa rồi bấm Lưu. Cuộc chat này sẽ thành cuộc chat của module đó.\n\nVí dụ: _Giỏ hàng: "
+                             "khách thêm, sửa số lượng, xóa sản phẩm; tối đa 5 cái mỗi sản phẩm._").send()
+
+
+async def _enter_module(module) -> None:
+    """Cuộc chat này thành cuộc chat của `module`: đổi tên, gắn tag, hiện nút chạy."""
+    cl.user_session.set("module", module.name)
+    cl.user_session.set("mode", None)
+    cl.user_session.set("named", True)
+    await _name_thread(module.title)
+    await cl.Message(content=f"## Module: {module.title}\n\nYêu cầu ở `modules/{module.name}.md`. Bấm **Chạy module** "
+                             "để team làm module này tiếp trên code đang có của dự án. Mỗi lần chạy, bản code trước "
+                             "được giữ trong Mã nguồn (chọn lượt cũ) để so sánh.",
+                     actions=_module_actions()).send()
+
+
+@cl.action_callback("module_open")
+async def on_module_open(action: cl.Action):
+    project = cl.user_session.get("project")
+    if cl.user_session.get("module") or cl.user_session.get("run_ref"):
+        await cl.Message(content="Cuộc chat này đã có lượt chạy. Mở cuộc chat mới để làm module khác.").send()
+        return
+    try:
+        module = load_module(project, action.payload.get("name", ""))
+    except (FileNotFoundError, TypeError):
+        await cl.Message(content="Không còn module này.").send()
+        return
+    await _enter_module(module)
+
+
+@cl.action_callback("module_edit")
+async def on_module_edit(action: cl.Action):
+    module = _module()
+    if module is None:
+        await cl.Message(content="Cuộc chat này chưa gắn với module nào.").send()
+        return
+    await _show_editor("module_edit", {"name": module.name, "title": module.title,
+                                       "requirements": module.requirements})
+
+
+async def _save_module(d: dict) -> None:
+    project = cl.user_session.get("project")
+    create = d.get("mode") == "module"
+    name = (d.get("name") or "").strip() if create else cl.user_session.get("module")
+    try:
+        module = write_module(project, name, title=d.get("title", ""), requirements=d.get("requirements", ""),
+                              create=create)
+    except (ValueError, FileExistsError, FileNotFoundError, OSError, TypeError) as e:
+        await _show_editor(d.get("mode"), d, error=str(e))
+        return
+    _set_unsaved("draft", None)
+    if not create:
+        await _show_editor("module_edit", {"name": module.name, "title": module.title,
+                                           "requirements": module.requirements})
+        await _name_thread(module.title)
+        await cl.Message(content=f"Đã lưu `modules/{module.name}.md`. Lượt chạy sau dùng bản mới.").send()
+        return
+    await cl.ElementSidebar.set_elements([])
+    await _enter_module(module)
 
 
 def _manager_model(settings: dict, setup) -> str | None:
@@ -333,8 +460,8 @@ def _run_state() -> tuple[dict, list[str], bool]:
 async def on_message(message: cl.Message):
     """Quản lý trả lời (FR-16); lệnh thì hiện nút xác nhận (FR-18). Ở mục "Dự án mới" thì tin nhắn là ý tưởng
     (hoặc yêu cầu sửa bản nháp) cho PM soạn dự án."""
-    if cl.user_session.get("mode") == "create":
-        await _draft(message.content)
+    if cl.user_session.get("mode") in ("create", "module"):
+        await _draft(message.content, module=cl.user_session.get("mode") == "module")
         return
     settings = cl.user_session.get("settings") or {}
     last = cl.user_session.get("last_run")
@@ -583,9 +710,12 @@ async def _name_thread(name: str, wait: float = 0.0, tag: str | None = None) -> 
     if (dl := current_data_layer()) is None or not (tid := cl.context.session.thread_id):
         return
     tag = tag or cl.user_session.get("project")
+    tags = [tag] if tag else []
+    if tag and (module := cl.user_session.get("module")):
+        tags.append(f"{MODULE_TAG}{module}")  # trang dự án tìm cuộc chat của module theo tag này
     try:
         await asyncio.sleep(wait)
-        await dl.update_thread(thread_id=tid, name=name, tags=[tag] if tag else None)
+        await dl.update_thread(thread_id=tid, name=name, tags=tags or None)
         # sự kiện này làm thanh bên trái tải lại danh sách cuộc chat
         await cl.context.emitter.emit("first_interaction", {"interaction": name, "thread_id": tid})
     except Exception:  # lịch sử lỗi không được làm hỏng lượt chạy
@@ -638,6 +768,9 @@ async def on_chat_resume(thread: dict):
         text = f"Không còn dữ liệu đã lưu của lượt `{run['run_id']}`, chỉ xem lại được tin nhắn."
     else:
         text = "Cuộc chat này chưa chạy lượt nào."
+    if (module := _module()) is not None:
+        text = f"**Module: {module.title}** · " + text
+        actions.append(cl.Action(name="module_edit", payload={}, label="Yêu cầu module", icon="file-pen"))
     # Chainlit gửi tin cũ cho giao diện (resume_thread) sau khi hàm này trả về, và lúc đó xóa nút của các tin gửi
     # trước. Nên gửi tin này từ một task riêng, sau khi hàm đã trả về.
     async def later():
@@ -670,9 +803,10 @@ async def on_run(action: cl.Action):
     delay = float(settings.get("delay") or 0)
     models = {r: settings.get(f"model_{r}") or "mock" for r in ROLES}
     escalate = {r: v for r in ESCALATABLE if (v := settings.get(f"escalate_{r}")) and v != KEEP}
+    module = cl.user_session.get("module")
     try:
         setup = prepare_run(project, (settings.get("requirements") or "").strip() or None,
-                            models=models, escalate=escalate, mock=mock)
+                            models=models, escalate=escalate, mock=mock, module=module)
     except FileNotFoundError as e:
         await cl.Message(content=str(e)).send()
         return
@@ -700,9 +834,10 @@ async def on_run(action: cl.Action):
         if not ok:
             await cl.Message(content="Đang có lượt khác chạy. Chờ lượt đó xong rồi bấm Chạy lại.").send()
             return
-        cl.user_session.set("run_ref", {"run_id": setup.run_id, "project": setup.project.name})
+        cl.user_session.set("run_ref", {"run_id": setup.run_id, "project": setup.project.name, "module": module})
         _set_unsaved("history_values", {})
-        await _name_thread(f"{setup.project.title} · {setup.run_id}")
+        title = setup.state.get("module_title") or setup.project.title
+        await _name_thread(f"{title} · {setup.run_id}")
         try:
             await _run(setup, mock=mock, delay=delay)
         finally:
@@ -710,7 +845,7 @@ async def on_run(action: cl.Action):
             cl.user_session.set("control", None)
             if last := cl.user_session.get("last_run"):
                 _save_run(last[1], last[0], cl.user_session.get("turns") or Turns())
-            await _name_thread(f"{setup.project.title} · {setup.run_id}")
+            await _name_thread(f"{title} · {setup.run_id}")
 
 
 async def _run(setup, *, mock: bool, delay: float) -> None:
@@ -723,8 +858,13 @@ async def _run(setup, *, mock: bool, delay: float) -> None:
     cl.user_session.set("turns", turns)
     task_list = cl.TaskList()
     await _send_tasks(task_list, progress, "Đang chạy")
-    moved = archive_output(out_dir, setup.run_id)
-    note = f"\n\nĐầu ra lượt trước đã chuyển sang `{display(moved)}`." if moved else ""
+    module = setup.state.get("module_title")
+    moved = archive_output(out_dir, setup.run_id, keep=bool(module))
+    if module:
+        note = (f"\n\nModule **{module}**: team làm tiếp trên code đang có"
+                + (f", bản trước lưu ở `{display(moved)}`." if moved else " (dự án chưa có code)."))
+    else:
+        note = f"\n\nĐầu ra lượt trước đã chuyển sang `{display(moved)}`." if moved else ""
     await cl.Message(content=f"Bắt đầu lượt `{setup.run_id}` · {format_models(setup, code=True)}{note}",
                      actions=[_code_action()]).send()
 

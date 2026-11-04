@@ -116,3 +116,68 @@ def write_project(name: str, *, title: str, requirements: str, stack: str, test_
               if isinstance(v, (str, int, float, bool))]
     toml_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return load_project(name, base=base)
+
+
+# ---------- module: mỗi module là một file projects/<dự án>/modules/<tên>.md, chạy riêng trong một cuộc chat ----------
+
+MODULES = "modules"
+
+
+@dataclass(frozen=True)
+class Module:
+    name: str           # tên file, không có .md
+    title: str          # dòng tiêu đề "# ..." đầu file
+    path: Path
+    requirements: str
+
+
+def _module_title(text: str, fallback: str) -> str:
+    m = re.search(r"^#\s+(.+)$", text, flags=re.MULTILINE)
+    title = m.group(1).strip() if m else fallback
+    return re.sub(r"^module\s*[:\-·]\s*", "", title, flags=re.IGNORECASE) or fallback
+
+
+def list_modules(project: str, base: Path | None = None) -> list[Module]:
+    d = (base or PROJECTS) / project / MODULES
+    if not d.is_dir():
+        return []
+    out = []
+    for p in sorted(d.glob("*.md")):
+        text = p.read_text(encoding="utf-8")
+        out.append(Module(name=p.stem, title=_module_title(text, p.stem), path=p, requirements=text))
+    return out
+
+
+def load_module(project: str, name: str, base: Path | None = None) -> Module:
+    for m in list_modules(project, base):
+        if m.name == name:
+            return m
+    raise FileNotFoundError(f"Dự án '{project}' không có module '{name}' ({MODULES}/{name}.md)")
+
+
+def write_module(project: str, name: str, *, title: str, requirements: str, base: Path | None = None,
+                 create: bool = False) -> Module:
+    """Ghi projects/<project>/modules/<name>.md. Dòng đầu luôn là "# Module: <title>"."""
+    base = base or PROJECTS
+    if not (base / project / "project.toml").is_file():
+        raise FileNotFoundError(f"Không có dự án '{project}'")
+    if not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,59}", name or ""):
+        raise ValueError("Tên file module chỉ gồm chữ thường không dấu, số và gạch nối")
+    if not title.strip() or not requirements.strip():
+        raise ValueError("Tên module và yêu cầu không được trống")
+    path = base / project / MODULES / f"{name}.md"
+    if create and path.exists():
+        raise FileExistsError(f"Đã có module '{name}', chọn tên khác")
+    body = re.sub(r"\A\s*#\s+.*\n", "", requirements.strip() + "\n", count=1).lstrip("\n")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(f"# Module: {title.strip()}\n\n{body}", encoding="utf-8")
+    return load_module(project, name, base)
+
+
+def module_requirements(project: Project, module: Module) -> str:
+    """Requirements đưa cho team khi chạy một module: yêu cầu của module trước, yêu cầu chung của dự án sau
+    (để giữ business rule và bối cảnh)."""
+    return (f"{module.requirements.strip()}\n\n---\n\n"
+            f"# Bối cảnh: yêu cầu chung của dự án {project.title}\n\n"
+            "(Chỉ để tham khảo business rule và phần đã có; lượt này chỉ làm module ở trên.)\n\n"
+            f"{project.requirements.strip()}\n")

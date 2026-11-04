@@ -10,7 +10,8 @@ from pathlib import Path
 
 from agents.providers import ESCALATABLE, ROLES, check_models, default_specs, escalation_specs, load_providers, \
     target_for
-from tools.project import Project, load_project
+from tools.file_tools import display
+from tools.project import Project, load_module, load_project, module_requirements
 
 
 @dataclass(frozen=True)
@@ -37,9 +38,12 @@ def _labels(specs: dict[str, str], providers) -> dict[str, str]:
 
 def prepare_run(project: str, requirements: str | None = None, *,
                 models: dict[str, str] | None = None, escalate: dict[str, str] | None = None,
-                mock: bool = False, run_id: str | None = None, output_dir: Path | None = None) -> RunSetup:
-    """FileNotFoundError khi không có dự án. Lỗi cấu hình model không ném ra mà nằm trong `problems`."""
+                mock: bool = False, run_id: str | None = None, output_dir: Path | None = None,
+                module: str | None = None) -> RunSetup:
+    """FileNotFoundError khi không có dự án (hoặc module). Lỗi cấu hình model không ném ra mà nằm trong `problems`.
+    `module`: chỉ làm module projects/<dự án>/modules/<module>.md, tiếp trên code đang có trong output/."""
     proj = load_project(project, requirements)
+    mod = load_module(proj.name, module, proj.dir.parent) if module else None
     out_dir = Path(output_dir) if output_dir is not None else proj.output_dir
     os.environ["OUTPUT_DIR"] = str(out_dir)  # tools/file_tools.py ghi vào đây
     run_id = run_id or datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -76,6 +80,9 @@ def prepare_run(project: str, requirements: str | None = None, *,
         "tests": {"command": proj.test_command, "cwd": proj.test_cwd, "timeout": proj.test_timeout},
         "log": [],
     }
+    if mod is not None:
+        state.update({"module": mod.name, "module_title": mod.title,
+                      "requirements": module_requirements(proj, mod), **existing_code(out_dir)})
     if models is not None:
         state["models"] = dict(models)
     if escalate is not None:
@@ -102,10 +109,29 @@ def output_run_id(out_dir: Path) -> str | None:
         return None
 
 
-def archive_output(out_dir: Path, run_id: str) -> Path | None:
+def existing_code(out_dir: Path) -> dict:
+    """Code đang có trong output/ (cho lượt chạy module): danh sách file backend, frontend và API spec."""
+    out_dir = Path(out_dir)
+    found = {}
+    for role in ("backend", "frontend"):
+        d = out_dir / role
+        files = sorted(display(p) for p in d.rglob("*") if p.is_file() and not any(
+            part in SKIP_DIRS for part in p.relative_to(d).parts[:-1])) if d.is_dir() else []
+        found[f"{role}_code"] = files
+    spec = out_dir / "docs" / "api_spec.md"
+    if spec.is_file():
+        found["api_spec"] = spec.read_text(encoding="utf-8")
+    return found
+
+
+SKIP_DIRS = {"node_modules", "target", "build", "dist", ".git", "__pycache__", ".venv", "venv", ".pytest_cache"}
+
+
+def archive_output(out_dir: Path, run_id: str, keep: bool = False) -> Path | None:
     """Chuyển đầu ra của lượt trước sang <dự án>/output_history/<mã lượt trước>/ để lượt `run_id` bắt đầu từ thư
     mục trống: file cũ không lẫn vào kết quả mới, và phần sửa (diff) của "bản đầu" so với rỗng chứ không so với
-    lượt trước. Giữ HISTORY_KEEP bản gần nhất. Trả về thư mục đã chuyển tới, None nếu không có gì để chuyển."""
+    lượt trước. Giữ HISTORY_KEEP bản gần nhất. Trả về thư mục đã chuyển tới, None nếu không có gì để chuyển.
+    keep=True (lượt chạy module): chỉ chép sang output_history/, output/ giữ nguyên để team làm tiếp."""
     out_dir = Path(out_dir)
     previous = output_run_id(out_dir) or f"truoc-{run_id}"
     moved = None
@@ -115,7 +141,10 @@ def archive_output(out_dir: Path, run_id: str) -> Path | None:
         dest = history / previous
         if dest.exists():
             shutil.rmtree(dest, ignore_errors=True)
-        out_dir.rename(dest)
+        if keep:
+            shutil.copytree(out_dir, dest, ignore=shutil.ignore_patterns(*SKIP_DIRS))
+        else:
+            out_dir.rename(dest)
         for old in sorted(p for p in history.iterdir() if p.is_dir())[:-HISTORY_KEEP]:
             shutil.rmtree(old, ignore_errors=True)
         moved = dest

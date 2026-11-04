@@ -17,7 +17,8 @@ def frontend(state):
     prompt = f"User stories:\n{dump(state['user_stories'])}"
     if state.get("api_spec"):
         prompt += f"\n\nAPI spec của Backend:\n{state['api_spec']}"
-    if my_bugs or my_findings:
+    extend = bool(state.get("module") and state.get("frontend_code"))  # module: làm tiếp trên code đang có
+    if my_bugs or my_findings or extend:
         prompt += (f"\n\nCode hiện tại:\n{read_files(state.get('frontend_code', []))}"
                    + (f"\n\nBug Tester giao cho bạn:\n{dump(my_bugs)}" if my_bugs else "")
                    + (f"\n\nFinding Reviewer giao cho bạn:\n{dump(my_findings)}" if my_findings else ""))
@@ -29,6 +30,8 @@ def frontend(state):
         action = f"sửa {len(my_findings)} finding review"
     elif my_bugs:
         action = f"sửa {len(my_bugs)} bug"
+    elif extend:
+        action = f"làm module {state.get('module_title') or state['module']}"
     else:
         action = "viết bản đầu"
     plane.add_comment(task, f"FE {action}, ghi {len(written)} file. {out.notes}")

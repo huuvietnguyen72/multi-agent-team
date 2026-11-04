@@ -4,7 +4,8 @@
   python main.py --project <tên>                          # chạy cả team, model theo MODEL / MODEL_<ROLE> trong .env
   python main.py --project <tên> --model mock             # kịch bản giả, không tốn token
   python main.py --project <tên> --model openai:gpt-5.6   # đổi model mặc định cho lần chạy này
-  python main.py --project <tên> --requirements <file.md> # chạy riêng một module của dự án
+  python main.py --project <tên> --module <module>         # làm một module (modules/<module>.md) tiếp trên code đang có
+  python main.py --project <tên> --requirements <file.md> # thay requirements của dự án cho lần chạy này
   python main.py --draw                                   # chỉ in sơ đồ graph
 """
 from __future__ import annotations
@@ -27,6 +28,8 @@ def main() -> None:
     ap.add_argument("--project", default=os.getenv("PROJECT"),
                     help="Tên thư mục trong projects/ (hoặc đặt PROJECT trong .env)")
     ap.add_argument("--requirements", help="File requirements thay cho file khai báo trong project.toml")
+    ap.add_argument("--module", help="Tên file trong projects/<tên>/modules/ (không có .md): team chỉ làm module đó, "
+                                     "tiếp trên code đang có trong output/ thay vì làm lại từ đầu")
     ap.add_argument("--model", metavar="PROVIDER[:MODEL]",
                     help="Một model cho cả team trong lần chạy này, bỏ qua MODEL / MODEL_<ROLE> trong .env. "
                          "'mock': kịch bản giả, không tốn token")
@@ -60,7 +63,7 @@ def main() -> None:
     from tools.file_tools import display
     from tools.run import archive_output, format_models, prepare_run
     try:
-        setup = prepare_run(args.project, args.requirements)  # nạp dự án, kiểm tra model và key theo role
+        setup = prepare_run(args.project, args.requirements, module=args.module)  # nạp dự án, kiểm tra model và key theo role
     except FileNotFoundError as e:
         sys.exit(str(e))
     if setup.problems:  # dừng trước khi gọi bất kỳ model nào
@@ -76,8 +79,11 @@ def main() -> None:
             answer = ""
         if answer.strip().lower() not in ("y", "yes", "c", "có"):
             sys.exit("\nĐã hủy. Thêm --yes để chạy không cần hỏi, hoặc --model mock để thử không tốn token.")
-    if moved := archive_output(project.output_dir, run_id):
-        print(f"   Đầu ra lượt trước chuyển sang {display(moved)}")
+    module = setup.state.get("module_title")
+    if moved := archive_output(project.output_dir, run_id, keep=bool(module)):
+        print(f"   {'Bản sao đầu ra hiện tại lưu ở' if module else 'Đầu ra lượt trước chuyển sang'} {display(moved)}")
+    if module:
+        print(f"   Module: {module} (làm tiếp trên code trong {display(project.output_dir)})")
     print(f"== Run {run_id} · {project.title} ({display(project.requirements_path)}) · log: runs/{run_id}.jsonl ==")
     print(f"   {models}")
     final = app.invoke(setup.state, config=setup.config)
