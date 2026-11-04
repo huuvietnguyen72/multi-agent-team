@@ -5,6 +5,10 @@ __pycache__/
 runs/*.jsonl
 output/
 projects/*/output/
+# dự án riêng của bạn không lên repo này; chỉ giữ mẫu và ví dụ
+projects/*
+!projects/_template/
+!projects/example/
 projects/*/output_history/
 providers.local.toml
 .chainlit/translations/*

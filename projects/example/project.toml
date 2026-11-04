@@ -1,0 +1,10 @@
+# Dự án mẫu nhỏ để thử khung. Tạo dự án của bạn: chép projects/_template/ thành projects/<tên>/.
+name = "Ví dụ · Danh sách việc cần làm"
+requirements = "requirements.md"
+stack = "stack.md"
+
+[tests]
+# Chạy khi RUN_TESTS=1; cwd tính từ projects/example/output/
+command = "python -m pytest -q"
+cwd = "backend"
+timeout = 300

@@ -97,7 +97,7 @@ def test_redact_hides_key_values():
 
 def test_summary_text_mock(tmp_path, monkeypatch):
     monkeypatch.delenv("OUTPUT_DIR", raising=False)
-    setup = prepare_run("library", mock=True, output_dir=tmp_path)
+    setup = prepare_run("example", mock=True, output_dir=tmp_path)
     final = build_graph().invoke(setup.state, setup.config)
     text = summary_text(final, setup, 75.0)
     assert "ACCEPTED" in text and "15 bước" in text

@@ -1,8 +1,28 @@
 # Multi-agent team: AI agent mô phỏng team phần mềm
 
+Một team AI (PM, BA, Backend, Frontend, Reviewer, Tester) cùng xây phần mềm từ file requirements của bạn, giống ý tưởng của MetaGPT nhưng luồng làm việc là một graph LangGraph rõ ràng, kèm giao diện Chainlit để theo dõi, chat với Quản lý, xem code và xem lại lịch sử. Clone về, tạo dự án của bạn trong `projects/`, chọn model cho từng role (Claude, OpenAI, OpenRouter, Ollama, hay provider riêng của bạn) rồi chạy.
+
+![](docs/images/ui-done.png)
+
+## Bắt đầu nhanh
+
+```powershell
+git clone https://github.com/huuvietnguyen72/multi-agent-team.git
+cd multi-agent-team
+python -m venv .venv
+.venv\Scripts\Activate.ps1          # macOS/Linux: source .venv/bin/activate
+pip install -r requirements.txt     # cần Python 3.11 đến 3.13
+copy .env.example .env              # macOS/Linux: cp .env.example .env
+chainlit run ui/app.py              # mở http://localhost:8000, đăng nhập admin / admin
+```
+
+Chọn dự án **Ví dụ · Danh sách việc cần làm**, bật **Chạy thử (mock)** ở biểu tượng bánh răng rồi bấm **Chạy**: cả luồng chạy bằng kịch bản giả, không tốn token. Sau đó làm theo mục [Tạo dự án mới](#tạo-dự-án-mới) và [Model và provider](#model-và-provider) để chạy cho dự án của bạn với model thật.
+
+## Cách hoạt động
+
 Khung dùng chung cho nhiều dự án: 6 agent (PM, BA, Backend, Frontend, Reviewer, Tester) do LangGraph điều phối, cùng xây một phần mềm từ requirements của một dự án trong `projects/<tên>/`. Mỗi agent đọc `skills/<role>/SKILL.md` (quy trình chung, không gắn với dự án nào) làm system prompt; stack và quy ước kỹ thuật riêng của dự án (`projects/<tên>/stack.md`) được chèn vào đầu prompt. Agent trả JSON theo schema Pydantic (`schemas.py`). Mọi bước được ghi vào `runs/<run_id>.jsonl` và phản ánh lên Plane.
 
-Dự án có sẵn: `library` (hệ thống mượn sách thư viện, Spring Boot + HTML/JS) và `library-borrow-detail` (một module nhỏ của nó, dùng để thử nhanh).
+Có sẵn `projects/_template/` (mẫu để chép) và `projects/example/` (một ứng dụng danh sách việc cần làm nhỏ, FastAPI + HTML/JS, để thử). Các dự án khác bạn tạo trong `projects/` không được commit (xem `.gitignore`), nên có thể pull bản mới của khung mà không lẫn dự án riêng.
 
 ## Luồng
 
@@ -17,24 +37,15 @@ tester ─(có bug, <3 vòng)→ dev có bug → reviewer → tester
 Mọi lần Dev sửa code (kể cả sửa bug của Tester) đều qua Reviewer trước khi test lại.
 Sơ đồ Mermaid sinh từ code: `docs/graph.mmd` (dán vào https://mermaid.live để xuất ảnh).
 
-## Cài đặt (Windows PowerShell)
-
-```powershell
-python -m venv .venv
-.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-copy .env.example .env
-```
-
-## Chạy
+## Chạy bằng dòng lệnh
 
 ```powershell
 python main.py --list                                # liệt kê dự án trong projects/
-python main.py --project library --model mock         # kịch bản giả cố định, không tốn token, để thử luồng
-python main.py --project library                      # model theo MODEL / MODEL_<ROLE> trong .env, hỏi xác nhận trước
-python main.py --project library --model ollama:qwen3:8b  # một model cho cả team lần này, bỏ qua MODEL_<ROLE>
-python main.py --project library --yes                # không hỏi xác nhận (bắt buộc khi chạy nền / CI)
-python main.py --project library --requirements projects/library/modules/x.md  # chạy riêng một module
+python main.py --project example --model mock         # kịch bản giả cố định, không tốn token, để thử luồng
+python main.py --project example                      # model theo MODEL / MODEL_<ROLE> trong .env, hỏi xác nhận trước
+python main.py --project example --model ollama:qwen3:8b  # một model cho cả team lần này, bỏ qua MODEL_<ROLE>
+python main.py --project example --yes                # không hỏi xác nhận (bắt buộc khi chạy nền / CI)
+python main.py --project example --requirements projects/example/modules/x.md  # chạy riêng một module
 python main.py --draw                                # chỉ in sơ đồ Mermaid
 python -m pytest -q tests                            # test khung (không gọi model, không ghi vào projects/)
 ```
@@ -133,9 +144,11 @@ Trước khi chạy, `main.py` kiểm tra cấu hình và dừng nếu sai (prov
 | `ollama`, `lmstudio` | `openai-compatible` | Model chạy local, không cần key; **chưa chạy thử** |
 | `mock` | `mock` | Kịch bản giả, luôn có |
 
-Đã chạy thật với dự án này: `claude-code` và `opencode-go`.
+Đã chạy thật: `claude-code` và `opencode-go`. Nếu bạn chạy được với provider khác, hãy mở PR sửa bảng này.
 
-Thêm nhà cung cấp khác: nếu nó theo chuẩn OpenAI Chat Completions hoặc Anthropic Messages, chỉ cần thêm một mục vào `providers.local.toml` (hoặc `providers.toml` nếu muốn chia sẻ), ví dụ:
+### Thêm provider của bạn
+
+Nếu nhà cung cấp theo chuẩn OpenAI Chat Completions hoặc Anthropic Messages, chỉ cần thêm một mục vào `providers.local.toml` (hoặc `providers.toml` nếu muốn chia sẻ), ví dụ:
 
 ```toml
 [providers.my-vllm]
@@ -167,3 +180,7 @@ Mỗi role có một `skills/<role>/SKILL.md`. Nội dung quy trình được r�
 `--model mock` dùng một kịch bản giả trung tính (3 user story về "mục" của người dùng), không đọc requirements hay stack; nó chỉ để kiểm tra luồng và định tuyến.
 
 Thêm một role mới: tạo `skills/<role>/SKILL.md` cùng định dạng, thêm schema đầu ra trong `schemas.py`, một file trong `agents/`, một hàm giả trong `agents/mock.py`, rồi nối node vào `graph.py`.
+
+## Giấy phép
+
+MIT, xem `LICENSE`. Phần nội dung skills chỉnh từ addyosmani/agent-skills (MIT), xem `THIRD_PARTY_NOTICES.md`.

@@ -21,7 +21,7 @@ def clean_env(monkeypatch):
 
 @pytest.fixture
 def setup(tmp_path):
-    return prepare_run("library", mock=True, output_dir=tmp_path)
+    return prepare_run("example", mock=True, output_dir=tmp_path)
 
 
 STATE = {"review_findings": [{"id": "CR-01", "severity": "required", "owner": "frontend", "detail": "x"}],
