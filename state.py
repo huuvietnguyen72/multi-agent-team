@@ -14,6 +14,10 @@ class TeamState(TypedDict, total=False):
     stack: str
     tests: dict               # {"command", "cwd", "timeout"} từ [tests] trong project.toml
 
+    # Model của lượt chạy (giao diện chọn); thiếu khóa thì đọc .env
+    models: dict              # role -> "<provider>:<model>"
+    escalate: dict            # role -> model vòng sửa cuối (chỉ ba, backend, frontend)
+
     # PM
     plan: list[dict]
     approved: bool
