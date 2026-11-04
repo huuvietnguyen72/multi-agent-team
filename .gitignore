@@ -6,3 +6,5 @@ runs/*.jsonl
 output/
 projects/*/output/
 providers.local.toml
+.chainlit/translations/
+.files/
