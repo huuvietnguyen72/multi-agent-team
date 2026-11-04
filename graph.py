@@ -10,7 +10,7 @@ from agents.frontend import frontend
 from agents.pm import pm_accept, pm_plan, pm_review
 from agents.reviewer import reviewer
 from agents.tester import tester
-from state import MAX_ROUNDS, TeamState, blocking_findings
+from state import MAX_ROUNDS, TeamState, blocking_findings, open_bugs
 
 
 def route_after_review(state: TeamState):
@@ -29,7 +29,7 @@ def route_after_code_review(state: TeamState):
 
 
 def route_after_test(state: TeamState):
-    bugs = state.get("bugs", [])
+    bugs = open_bugs(state)
     if not bugs or state.get("iteration", 0) >= MAX_ROUNDS:
         return "pm_accept"
     owners = sorted({b["owner"] for b in bugs})  # chỉ Dev có bug mới phải sửa

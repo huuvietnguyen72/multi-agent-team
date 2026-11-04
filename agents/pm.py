@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from agents.common import ask, dump
 from schemas import PMAccept, PMPlan, PMReview
-from state import MAX_ROUNDS, blocking_findings
+from state import MAX_ROUNDS, blocking_findings, open_bugs
 from tools.file_tools import write_doc
 from tools.plane_client import plane
 from tools.runlog import log_step
@@ -53,7 +53,10 @@ def pm_accept(state):
               f"Duyệt phân tích: {state.get('approved')}\nSố vòng test: {state.get('iteration', 0)}\n"
               f"Review code: {state.get('review_summary', '')}\n"
               f"Finding chặn tồn đọng: {dump(blocking_findings(state))}\n"
-              f"Bug tồn đọng: {dump(state.get('bugs', []))}\nTest report:\n{state.get('test_report', '')}")
+              f"Bug tồn đọng: {dump(open_bugs(state))}\nTest report:\n{state.get('test_report', '')}")
+    if state.get("interventions"):
+        prompt += ("\n\nCan thiệp của người dùng trong lượt chạy (đã được người dùng xác nhận):\n"
+                   + "\n".join(f"- {i['text']}" for i in state["interventions"]))
     out = ask("pm", "pm_accept", state, prompt, PMAccept)
     tasks = state["plane_tasks"]
     if out.final_status == "ACCEPTED":
@@ -61,6 +64,10 @@ def pm_accept(state):
             plane.move_task(tasks.get(key), "Done")
     for key in ("ANALYSIS", "BACKEND", "FRONTEND", "TEST"):
         plane.add_comment(tasks.get(key), f"Nghiệm thu: {out.final_status}. {out.summary}")
-    write_doc("final_report.md", f"# Nghiệm thu\n\n**{out.final_status}**\n\n{out.summary}\n")
+    report = f"# Nghiệm thu\n\n**{out.final_status}**\n\n{out.summary}\n"
+    if state.get("interventions"):
+        report += "\n## Can thiệp của người dùng\n\n" + "".join(
+            f"- Sau bước `{i['after']}`: {i['text']}\n" for i in state["interventions"])
+    write_doc("final_report.md", report)
     entry = log_step(state["run_id"], "pm_accept", f"{out.final_status}: {out.summary}")
     return {"final_status": out.final_status, "log": [entry]}

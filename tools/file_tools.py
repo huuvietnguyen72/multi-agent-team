@@ -26,13 +26,27 @@ def display(path: Path) -> str:
         return str(path).replace("\\", "/")
 
 
+def _strip_known_prefix(path: str, base: Path, role_dir: str) -> str:
+    """Model hay chép lại đường dẫn nó thấy trong prompt ("projects/x/output/frontend/app.js", "frontend/app.js",
+    hoặc đường dẫn tuyệt đối), trong khi path phải tương đối với thư mục của role. Bỏ phần đầu đó để không ghi
+    thành file lồng frontend/projects/x/output/frontend/app.js."""
+    p = path.replace("\\", "/")
+    while p.startswith("./"):
+        p = p[2:]
+    for prefix in (str(base).replace("\\", "/"), display(base), role_dir):
+        prefix = prefix.rstrip("/") + "/"
+        if p.startswith(prefix):
+            return p[len(prefix):]
+    return p
+
+
 def write_files(role_dir: str, files: list[dict]) -> list[str]:
     progress("write")
     base = (output_dir() / role_dir).resolve()
     base.mkdir(parents=True, exist_ok=True)
     written = []
     for f in files:
-        target = (base / f["path"]).resolve()
+        target = (base / _strip_known_prefix(f["path"], base, role_dir)).resolve()
         if not target.is_relative_to(base):
             raise ValueError(f"Đường dẫn ngoài phạm vi: {f['path']}")
         target.parent.mkdir(parents=True, exist_ok=True)

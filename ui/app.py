@@ -30,12 +30,15 @@ from agents.providers import (ESCALATABLE, ROLES, default_specs, escalation_spec
                               model_choices)
 from tools.project import list_projects, load_project  # noqa: E402
 from tools.run import format_models, prepare_run  # noqa: E402
-from ui.runner import exclusive_run, stream_events  # noqa: E402
+from ui.manager import Command, ask_manager, build_patch, command_from, manager_spec, validate  # noqa: E402
+from ui.runner import RunControl, exclusive_run, stream_events  # noqa: E402
 from ui.turns import Turns, file_changes  # noqa: E402
 from ui.view import (AUTHORS, Progress, changed_files, files_for, language_for, message_for, redact,  # noqa: E402
                      secret_values, snapshot, summary_text)
 
 KEEP = "(không đổi)"
+SAME_AS_PM = "(giống PM)"
+MANAGER = "Manager"  # tên tác giả tin nhắn của Quản lý; avatar đọc từ public/avatars/manager.png
 ROLE_NAMES = {"pm": "PM", "ba": "BA", "backend": "Backend", "frontend": "Frontend",
               "reviewer": "Reviewer", "tester": "Tester"}
 TASK_STATUS = {"ready": cl.TaskStatus.READY, "running": cl.TaskStatus.RUNNING,
@@ -80,6 +83,11 @@ def _widgets(projects: list[str], current: str | None) -> tuple[list, str | None
         widgets.append(Select(id=f"escalate_{role}", label=f"Model vòng sửa cuối của {ROLE_NAMES[role]}",
                               description="Tự đổi sang model này ở lần sửa cuối cùng; bỏ qua khi chạy mock",
                               values=[KEEP] + sorted(set(choices) | ({initial} - {KEEP})), initial_value=initial))
+    manager = os.getenv("MODEL_MANAGER") or SAME_AS_PM
+    widgets.append(Select(id="model_manager", label="Model của Quản lý (chat trong lúc chạy)",
+                          description="Trả lời câu hỏi và nhận lệnh trong khung chat; khi chạy mock thì dùng Quản lý mock",
+                          values=[SAME_AS_PM] + sorted(set(choices) | ({manager} - {SAME_AS_PM})),
+                          initial_value=manager))
     return widgets, esc_error
 
 
@@ -118,10 +126,88 @@ async def on_pick_project(action: cl.Action):
                      actions=[cl.Action(name="run", payload={}, label="Chạy")]).send()
 
 
+def _manager_model(settings: dict, setup) -> str | None:
+    """Model của Quản lý: mock khi đang bật chạy thử, ô chọn trong cài đặt, rồi MODEL_MANAGER, rồi model của PM."""
+    if settings.get("mock"):
+        return "mock"
+    chosen = settings.get("model_manager")
+    if chosen and chosen != SAME_AS_PM:
+        return chosen
+    return manager_spec(setup.models if setup else None)
+
+
+def _run_state() -> tuple[dict, list[str], bool]:
+    """(state, node đang chạy, đang tạm dừng) của lượt đang chạy hoặc lượt gần nhất trong phiên."""
+    last = cl.user_session.get("last_run")
+    if not last:
+        return {}, [], False
+    graph_app, setup = last
+    control: RunControl | None = cl.user_session.get("control")
+    values = dict(graph_app.get_state(setup.config).values)
+    return values, list(control.running) if control else [], bool(control and control.paused)
+
+
 @cl.on_message
 async def on_message(message: cl.Message):
-    await cl.Message(content="Bấm nút Chạy để team bắt đầu. Đổi dự án hoặc model trong phần cài đặt.",
-                     actions=[cl.Action(name="run", payload={}, label="Chạy")]).send()
+    """Quản lý trả lời (FR-16); lệnh thì hiện nút xác nhận (FR-18)."""
+    settings = cl.user_session.get("settings") or {}
+    last = cl.user_session.get("last_run")
+    values, running, paused = _run_state()
+    started = time.monotonic()
+    try:
+        reply, label = await cl.make_async(ask_manager)(message.content, values, running, paused=paused,
+                                                         spec=_manager_model(settings, last[1] if last else None))
+    except Exception as e:  # model lỗi, hết hạn mức, cấu hình sai: báo trong chat, lượt chạy không bị ảnh hưởng
+        await cl.Message(author=MANAGER, content="Quản lý lỗi: " +
+                         redact(f"{type(e).__name__}: {e}", secret_values(load_providers()))).send()
+        return
+    footer = f"\n\n_model:_ `{label}` _· {time.monotonic() - started:.1f} giây_"
+    cmd = command_from(reply)
+    actions = []
+    if cmd is not None:
+        control: RunControl | None = cl.user_session.get("control")
+        error = None if cmd.action in ("stop", "resume") else validate(cmd, values)
+        if control is None:
+            error = "không có lượt nào đang chạy"
+        elif cmd.action == "resume" and not control.paused:
+            error = "team đang chạy, không có gì để chạy tiếp"
+        if error:
+            footer = f"\n\nKhông áp được lệnh: {error}." + footer
+        else:
+            pending = cl.user_session.get("pending_commands") or {}
+            cid = f"c{len(pending) + 1}"
+            footer = f"\n\n**Lệnh:** {cmd.describe()}" + footer
+            actions = [cl.Action(name="manager_ok", payload={"cid": cid}, label="Đồng ý"),
+                       cl.Action(name="manager_no", payload={"cid": cid}, label="Không")]
+    if last is None and not actions:  # chưa chạy lần nào: vẫn đưa nút Chạy như trước
+        actions = [cl.Action(name="run", payload={}, label="Chạy")]
+    msg = cl.Message(author=MANAGER, content=reply.reply + footer, actions=actions)
+    await msg.send()
+    if cmd is not None and actions and actions[0].name == "manager_ok":
+        pending[cid] = (cmd, msg)  # giữ tin nhắn để gỡ cả hai nút khi đã chọn
+        cl.user_session.set("pending_commands", pending)
+
+
+@cl.action_callback("manager_ok")
+async def on_manager_ok(action: cl.Action):
+    cmd, msg = (cl.user_session.get("pending_commands") or {}).pop(action.payload.get("cid"), (None, None))
+    if msg is not None:
+        await msg.remove_actions()
+    control: RunControl | None = cl.user_session.get("control")
+    if cmd is None or control is None:
+        await cl.Message(author=MANAGER, content="Lượt chạy đã kết thúc, lệnh không còn tác dụng.").send()
+        return
+    control.push(cmd)
+    when = "ngay" if control.paused else "khi bước đang chạy xong"
+    await cl.Message(author=MANAGER, content=f"Đã nhận lệnh, áp dụng {when}: {cmd.describe()}.").send()
+
+
+@cl.action_callback("manager_no")
+async def on_manager_no(action: cl.Action):
+    _, msg = (cl.user_session.get("pending_commands") or {}).pop(action.payload.get("cid"), (None, None))
+    if msg is not None:
+        await msg.remove_actions()
+    await cl.Message(author=MANAGER, content="Đã bỏ lệnh, không đổi gì.").send()
 
 
 @cl.on_stop
@@ -130,6 +216,8 @@ async def on_stop():
     stop = cl.user_session.get("stop")
     if stop is not None and not stop.is_set():
         stop.set()
+        if (control := cl.user_session.get("control")) is not None:
+            control.wake.set()  # đang tạm dừng thì thôi chờ
         await cl.Message(content="Đã nhận lệnh dừng: team dừng sau khi bước đang chạy xong, "
                                  "không gọi thêm model nào.").send()
 
@@ -244,6 +332,9 @@ async def on_run(action: cl.Action):
             actions=[cl.Action(name="confirm", payload={"ok": True}, label="Chạy"),
                      cl.Action(name="cancel", payload={"ok": False}, label="Hủy")],
             timeout=600).send()
+        # AskActionMessage xong thì Chainlit báo "đang chạy" (task_start), khung nhập bị khóa và nút gửi thành nút
+        # dừng cho tới hết lượt. Trả khung nhập lại để chat được với Quản lý trong lúc team chạy.
+        await cl.context.emitter.task_end()
         if not res or not (res.get("payload") or {}).get("ok"):
             await cl.Message(content="Đã hủy, chưa gọi model nào.").send()
             return
@@ -256,6 +347,7 @@ async def on_run(action: cl.Action):
             await _run(setup, mock=mock, delay=delay)
         finally:
             cl.user_session.set("stop", None)  # hết lượt: bấm dừng lúc này không còn gì để dừng
+            cl.user_session.set("control", None)
 
 
 async def _run(setup, *, mock: bool, delay: float) -> None:
@@ -275,7 +367,11 @@ async def _run(setup, *, mock: bool, delay: float) -> None:
     before: dict[str, dict] = {}
     started = time.monotonic()
     step = 0
-    events = stream_events(build_graph(), setup, stop)
+    graph_app = build_graph()
+    control = RunControl(apply=build_patch, validate=validate)
+    cl.user_session.set("control", control)
+    cl.user_session.set("last_run", (graph_app, setup))
+    events = stream_events(graph_app, setup, stop, control)
     next_event = cl.make_async(next)
     final_status = "Lỗi"
     while (event := await next_event(events, None)) is not None:
@@ -330,6 +426,17 @@ async def _run(setup, *, mock: bool, delay: float) -> None:
             else:
                 await cl.Message(content=text).send()
             final_status = "Lỗi"
+        elif event.kind == "applied":
+            await cl.Message(author=MANAGER, content=f"Đã áp dụng sau bước {AUTHORS.get(node, node)}: {event.message}.").send()
+        elif event.kind == "rejected":
+            await cl.Message(author=MANAGER, content=f"Không áp được lệnh: {event.message}.").send()
+        elif event.kind == "paused":
+            await _send_tasks(task_list, progress, "Tạm dừng")
+            await cl.Message(author=MANAGER, content=f"Đã tạm dừng sau bước {AUTHORS.get(node, node)}. "
+                                                     "Gõ \"chạy tiếp\" để tiếp tục, hoặc ra lệnh khác trước.").send()
+        elif event.kind == "resumed":
+            await _send_tasks(task_list, progress, "Đang chạy")
+            await cl.Message(author=MANAGER, content="Team chạy tiếp.").send()
         elif event.kind == "end":
             for t in tickers.values():
                 t.cancel()

@@ -20,7 +20,11 @@ def reviewer(state):
         prompt += f"\n\nFinding vòng trước (kiểm tra đã sửa chưa):\n{dump(state['review_findings'])}"
     out = ask("reviewer", "reviewer", state, prompt, ReviewOutput)
     findings = [f.model_dump() for f in out.findings]
-    blocking = [f for f in findings if f["severity"] in BLOCKING]
+    dismissed = state.get("dismissed") or {}
+    for f in findings:  # model nêu lại mục người dùng đã bỏ qua: giữ để xem, nhưng không chặn
+        if f["id"] in dismissed:
+            f["dismissed"], f["dismiss_reason"] = True, dismissed[f["id"]]
+    blocking = [f for f in findings if f["severity"] in BLOCKING and not f.get("dismissed")]
     approved = not blocking  # không tin cờ của LLM nếu trái với danh sách finding
 
     lines = [f"# Code review vòng {rnd}\n", f"**{'DUYỆT' if approved else 'CẦN SỬA'}**: {out.summary}\n"]
