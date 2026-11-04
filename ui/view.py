@@ -65,7 +65,7 @@ def _last_log(update: dict) -> dict:
 def _footer(data: dict) -> str:
     model = data.get("model", "?")
     seconds = data.get("seconds")
-    line = f"_model: {model}" + (f" · {seconds:g} giây_" if seconds is not None else "_")
+    line = f"_model:_ `{model}`" + (f" _· {seconds:g} giây_" if seconds is not None else "")
     if data.get("escalated_from"):
         line = (f"Đổi từ `{data['escalated_from']}` sang `{model}` vì đây là vòng sửa cuối.\n\n" + line)
     return line

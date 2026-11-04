@@ -51,3 +51,10 @@ def test_format_models_shows_escalation(tmp_path):
 def test_prepare_run_unknown_project(tmp_path):
     with pytest.raises(FileNotFoundError):
         prepare_run("khong-co-du-an-nay", output_dir=tmp_path)
+
+
+def test_format_models_code_quotes_names(tmp_path):
+    """Trong markdown của Chainlit, ':sonnet' bị đọc là directive và mất chữ; bọc code thì giữ nguyên."""
+    setup = prepare_run("library", models={"backend": "opencode-go:glm-5.3"}, escalate={}, mock=False,
+                        run_id="t", output_dir=tmp_path)
+    assert "backend=`opencode-go:glm-5.3`" in format_models(setup, code=True)

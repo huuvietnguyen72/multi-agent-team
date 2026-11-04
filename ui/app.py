@@ -126,9 +126,12 @@ async def on_message(message: cl.Message):
 
 @cl.on_stop
 async def on_stop():
+    # Chainlit tự gửi "Task manually stopped." trước khi gọi hàm này; nói rõ team dừng thế nào.
     stop = cl.user_session.get("stop")
-    if stop is not None:
+    if stop is not None and not stop.is_set():
         stop.set()
+        await cl.Message(content="Đã nhận lệnh dừng: team dừng sau khi bước đang chạy xong, "
+                                 "không gọi thêm model nào.").send()
 
 
 async def _send_tasks(task_list: cl.TaskList, progress: Progress, status: str) -> None:
@@ -249,7 +252,10 @@ async def on_run(action: cl.Action):
         if not ok:
             await cl.Message(content="Đang có lượt khác chạy. Chờ lượt đó xong rồi bấm Chạy lại.").send()
             return
-        await _run(setup, mock=mock, delay=delay)
+        try:
+            await _run(setup, mock=mock, delay=delay)
+        finally:
+            cl.user_session.set("stop", None)  # hết lượt: bấm dừng lúc này không còn gì để dừng
 
 
 async def _run(setup, *, mock: bool, delay: float) -> None:
@@ -262,7 +268,7 @@ async def _run(setup, *, mock: bool, delay: float) -> None:
     cl.user_session.set("turns", turns)
     task_list = cl.TaskList()
     await _send_tasks(task_list, progress, "Đang chạy")
-    await cl.Message(content=f"Bắt đầu lượt `{setup.run_id}` · {format_models(setup)}").send()
+    await cl.Message(content=f"Bắt đầu lượt `{setup.run_id}` · {format_models(setup, code=True)}").send()
 
     placeholders: dict[str, cl.Message] = {}
     tickers: dict[str, asyncio.Task] = {}
