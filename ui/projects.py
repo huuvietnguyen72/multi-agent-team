@@ -9,11 +9,13 @@ import sqlite3
 from pathlib import Path
 
 from agents.providers import adapter, load_providers, target_for
-from schemas import ProjectDraft
-from tools.project import PROJECTS, list_projects, load_project, slugify
+from schemas import ModuleDraft, ProjectDraft
+from tools.run import existing_code
+from tools.project import PROJECTS, list_modules, list_projects, load_project, slugify
 from ui.history import DB_PATH, RUNS_DIR
 
 MAX_LISTED = 8
+MODULE_TAG = "module:"  # tag của cuộc chat thuộc một module: "module:<tên>", cạnh tag tên dự án
 
 
 def template() -> tuple[str, str]:
@@ -21,10 +23,11 @@ def template() -> tuple[str, str]:
     return (d / "requirements.md").read_text(encoding="utf-8"), (d / "stack.md").read_text(encoding="utf-8")
 
 
-def unique_slug(slug: str, base: Path = PROJECTS) -> str:
+def unique_slug(slug: str, base: Path = PROJECTS, suffix: str = "") -> str:
+    """Tên chưa dùng trong `base` (`suffix` là đuôi file, ví dụ ".md" cho module)."""
     slug = slugify(slug)
     out, n = slug, 2
-    while (base / out).exists():
+    while (base / f"{out}{suffix}").exists():
         out, n = f"{slug}-{n}", n + 1
     return out
 
@@ -61,6 +64,67 @@ def mock_draft(idea: str, previous: dict | None = None) -> ProjectDraft:
                               "để PM soạn đầy đủ chức năng và business rule.")
 
 
+MODULE_TEMPLATE = """## Mục tiêu
+
+{idea}
+
+## Chức năng
+
+| Mã | Chức năng | Mô tả |
+|---|---|---|
+| F? | ... | ... |
+
+## Business rules
+
+| Mã | Quy tắc | Khi vi phạm |
+|---|---|---|
+| BR-? | ... | ... |
+
+## Liên quan tới phần đã có
+
+...
+
+## Ngoài phạm vi
+
+...
+
+## Ví dụ kiểm thử mong đợi
+
+...
+"""
+
+
+def draft_module(project: str, idea: str, *, previous: dict | None = None, spec: str | None = None,
+                 providers=None) -> tuple[ModuleDraft, str]:
+    """(bản nháp module, nhãn model) cho mô tả `idea` của người dùng, trong dự án `project`."""
+    providers = providers if providers is not None else load_providers()
+    target = target_for("module", providers, spec=spec or target_for("pm", providers).label)
+    if target.provider.type == "mock":
+        return mock_module(idea, previous), target.label
+    p = load_project(project)
+    have = "\n".join(f"- {m.title} (`{m.name}`)" for m in list_modules(project)) or "(chưa có)"
+    code = existing_code(p.output_dir)
+    files = [f for k in ("backend_code", "frontend_code") for f in code[k]]
+    parts = [f"## Requirements chung của dự án {p.title}\n\n{p.requirements}", f"## Module đã có\n\n{have}",
+             "## File code đang có\n\n" + ("\n".join(f"- {f}" for f in files[:200]) or "(chưa có code)")]
+    if previous:
+        parts.append("## Bản nháp hiện tại\n\n" + json.dumps(previous, ensure_ascii=False, indent=1))
+        parts.append(f"## Người dùng yêu cầu sửa\n\n{idea}")
+    else:
+        parts.append(f"## Module người dùng muốn thêm\n\n{idea}")
+    draft = adapter(target.provider.type)(target, "module", "\n\n".join(parts), ModuleDraft)
+    return draft, target.label
+
+
+def mock_module(idea: str, previous: dict | None = None) -> ModuleDraft:
+    if previous:
+        return ModuleDraft(**{**{k: previous.get(k, "") for k in ("title", "slug", "requirements")},
+                              "reply": "(mock) Không soạn lại được khi chạy mock; anh sửa trực tiếp trong khung bên phải."})
+    title = re.split(r"[.:\n]", idea.strip(), maxsplit=1)[0].strip()[:60] or "Module mới"
+    return ModuleDraft(title=title, slug=slugify(title), requirements=MODULE_TEMPLATE.format(idea=idea.strip()),
+                       reply="(mock) Em điền mẫu với mô tả của anh. Tắt mock để PM soạn đầy đủ chức năng và BR.")
+
+
 def description(name: str, limit: int = 300) -> str:
     """Đoạn "Mô tả" trong requirements.md của dự án (hoặc đoạn văn đầu tiên)."""
     try:
@@ -82,8 +146,9 @@ def runs_of(name: str, runs_dir: Path = RUNS_DIR) -> list[dict]:
         except (OSError, ValueError):
             continue
         if data.get("project") == name:
-            out.append({"run_id": data.get("run_id") or p.name.split(".")[0],
-                        "status": (data.get("values") or {}).get("final_status") or "chưa xong"})
+            values = data.get("values") or {}
+            out.append({"run_id": data.get("run_id") or p.name.split(".")[0], "module": values.get("module"),
+                        "status": values.get("final_status") or "chưa xong"})
     return out
 
 
@@ -104,25 +169,50 @@ def threads_of(name: str, user: str, db_path: Path = DB_PATH) -> list[dict]:
         except ValueError:
             tags = []
         if name in tags:
-            out.append({"id": tid, "name": tname or "Cuộc chat", "createdAt": created or ""})
+            module = next((t[len(MODULE_TAG):] for t in tags if isinstance(t, str) and t.startswith(MODULE_TAG)), None)
+            out.append({"id": tid, "name": tname or "Cuộc chat", "createdAt": created or "", "module": module})
+    return out
+
+
+def modules_of(name: str, user: str, *, runs_dir: Path = RUNS_DIR, db_path: Path = DB_PATH,
+               base: Path | None = None) -> list[dict]:
+    """Các module của dự án: {"name", "title", "status", "run_id", "thread"} (thread: cuộc chat mới nhất của module)."""
+    runs, chats = runs_of(name, runs_dir), threads_of(name, user, db_path)
+    out = []
+    for m in list_modules(name, base):
+        last = next((r for r in runs if r.get("module") == m.name), None)
+        chat = next((t for t in chats if t.get("module") == m.name), None)
+        out.append({"name": m.name, "title": m.title, "status": last["status"] if last else None,
+                    "run_id": last["run_id"] if last else None, "thread": chat["id"] if chat else None})
     return out
 
 
 def overview(name: str, user: str, *, current_thread: str | None = None) -> str:
-    """Nội dung tin chào của một dự án: mô tả, các lượt đã chạy, các cuộc chat trước."""
+    """Nội dung tin chào của một dự án: mô tả, các module, các lượt đã chạy, các cuộc chat khác."""
     p = load_project(name)
     lines = [f"## {p.title}"]
     if desc := description(name):
         lines.append(desc)
+    mods = modules_of(name, user)
+    if mods:
+        rows = []
+        for m in mods:
+            status = f"**{m['status']}** (`{m['run_id']}`)" if m["status"] else "chưa chạy"
+            link = f"[{m['title']}](/thread/{m['thread']})" if m["thread"] and m["thread"] != current_thread \
+                else m["title"]
+            rows.append(f"| {link} | `modules/{m['name']}.md` | {status} |")
+        lines.append("**Module** (mỗi module một cuộc chat, bấm tên để mở):\n\n| Module | File | Lượt gần nhất |\n"
+                     "|---|---|---|\n" + "\n".join(rows))
     runs = runs_of(name)
-    if runs:
-        last = runs[0]
-        lines.append(f"**{len(runs)} lượt đã chạy**, gần nhất `{last['run_id']}`: **{last['status']}**.")
-    else:
+    whole = [r for r in runs if not r.get("module")]
+    if whole:
+        last = whole[0]
+        lines.append(f"**{len(whole)} lượt chạy cả dự án**, gần nhất `{last['run_id']}`: **{last['status']}**.")
+    elif not runs:
         lines.append("Chưa chạy lượt nào.")
-    chats = [t for t in threads_of(name, user) if t["id"] != current_thread]
+    chats = [t for t in threads_of(name, user) if t["id"] != current_thread and not t.get("module")]
     if chats:
-        lines.append("**Các cuộc chat của dự án này:**\n\n" + "\n".join(
+        lines.append("**Các cuộc chat khác của dự án:**\n\n" + "\n".join(
             f"- [{t['name']}](/thread/{t['id']}) · {t['createdAt'][:10]}" for t in chats[:MAX_LISTED]))
         if len(chats) > MAX_LISTED:
             lines.append(f"_và {len(chats) - MAX_LISTED} cuộc chat cũ hơn ở thanh bên trái._")

@@ -13,6 +13,8 @@ class TeamState(TypedDict, total=False):
     requirements: str
     stack: str
     tests: dict               # {"command", "cwd", "timeout"} từ [tests] trong project.toml
+    module: str               # chạy một module (projects/<tên>/modules/<module>.md) tiếp trên code đang có
+    module_title: str
 
     # Model của lượt chạy (giao diện chọn); thiếu khóa thì đọc .env
     models: dict              # role -> "<provider>:<model>"

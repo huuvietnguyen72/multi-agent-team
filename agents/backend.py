@@ -15,7 +15,8 @@ def backend(state):
     my_bugs = open_bugs(state, "backend")
     my_findings = blocking_findings(state, "backend")
     prompt = f"User stories:\n{dump(state['user_stories'])}"
-    if my_bugs or my_findings:
+    extend = bool(state.get("module") and state.get("backend_code"))  # module: làm tiếp trên code đang có
+    if my_bugs or my_findings or extend:
         prompt += (f"\n\nAPI spec hiện tại:\n{state.get('api_spec', '')}"
                    f"\n\nCode hiện tại:\n{read_files(state.get('backend_code', []))}"
                    + (f"\n\nBug Tester giao cho bạn:\n{dump(my_bugs)}" if my_bugs else "")
@@ -30,6 +31,8 @@ def backend(state):
         action = f"sửa {len(my_findings)} finding review"
     elif my_bugs:
         action = f"sửa {len(my_bugs)} bug"
+    elif extend:
+        action = f"làm module {state.get('module_title') or state['module']}"
     else:
         action = "viết bản đầu"
     plane.add_comment(task, f"BE {action}, ghi {len(written)} file. {out.notes}")

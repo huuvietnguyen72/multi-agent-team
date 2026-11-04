@@ -45,7 +45,7 @@ python main.py --project example --model mock         # kịch bản giả cố 
 python main.py --project example                      # model theo MODEL / MODEL_<ROLE> trong .env, hỏi xác nhận trước
 python main.py --project example --model ollama:qwen3:8b  # một model cho cả team lần này, bỏ qua MODEL_<ROLE>
 python main.py --project example --yes                # không hỏi xác nhận (bắt buộc khi chạy nền / CI)
-python main.py --project example --requirements projects/example/modules/x.md  # chạy riêng một module
+python main.py --project example --module gio-hang   # làm module projects/example/modules/gio-hang.md tiếp trên code đang có
 python main.py --draw                                # chỉ in sơ đồ Mermaid
 python -m pytest -q tests                            # test khung (không gọi model, không ghi vào projects/)
 ```
@@ -63,7 +63,8 @@ pip install -r requirements.txt     # đã có chainlit; cần Python 3.11 đế
 chainlit run ui/app.py              # chạy từ thư mục gốc repo, mở http://localhost:8000
 ```
 
-- **Dự án** (ô chọn ở góc trên): mỗi thư mục trong `projects/` là một mục. Chọn một dự án thì trang chào hiện mô tả, số lượt đã chạy và kết quả gần nhất, các cuộc chat trước của dự án đó (bấm để mở lại), và các nút **Chạy**, **Mã nguồn**, **Yêu cầu và stack** (sửa `requirements.md`, `stack.md`, lệnh test ngay trên giao diện). Mục **+ Dự án mới**: gõ ý tưởng vài câu, PM soạn `requirements.md` và `stack.md` theo mẫu (skill `skills/setup/SKILL.md`, dùng model của PM; khi bật mock thì chỉ điền mẫu), sửa ở khung bên phải hoặc gõ yêu cầu để PM soạn lại, rồi bấm **Lưu và tạo dự án**: thư mục `projects/<tên>/` được tạo và chạy được ngay trong cuộc chat đó; tải lại trang thì dự án có trong ô chọn.
+- **Dự án** (ô chọn ở góc trên): mỗi thư mục trong `projects/` là một mục. Chọn một dự án thì trang chào hiện mô tả, số lượt đã chạy và kết quả gần nhất, các cuộc chat trước của dự án đó (bấm để mở lại), và các nút **Chạy cả dự án**, **+ Module mới**, **Mã nguồn**, **Yêu cầu và stack** (sửa `requirements.md`, `stack.md`, lệnh test ngay trên giao diện). Mục **+ Dự án mới**: gõ ý tưởng vài câu, PM soạn `requirements.md` và `stack.md` theo mẫu (skill `skills/setup/SKILL.md`, dùng model của PM; khi bật mock thì chỉ điền mẫu), sửa ở khung bên phải hoặc gõ yêu cầu để PM soạn lại, rồi bấm **Lưu và tạo dự án**: thư mục `projects/<tên>/` được tạo và chạy được ngay trong cuộc chat đó; tải lại trang thì dự án có trong ô chọn.
+- **Module** (mỗi module một cuộc chat): trên trang dự án bấm **+ Module mới**, mô tả phần cần làm tiếp, PM soạn `projects/<tên>/modules/<module>.md` (skill `skills/module/SKILL.md`: mục tiêu, chức năng, BR dùng lại mã của requirements chung, phần liên quan tới code đã có, ngoài phạm vi), sửa rồi bấm **Lưu module**. Cuộc chat đó thành cuộc chat của module, bấm **Chạy module**. Lượt chạy module đưa yêu cầu module kèm requirements chung, cho Backend và Frontend đọc code đang có trong `output/` và chỉ sửa hoặc thêm phần cần thiết; `output/` được giữ nguyên (bản sao trước lượt nằm ở `output_history/`). Trang dự án liệt kê các module, kết quả lượt gần nhất của từng module và đường dẫn tới cuộc chat của nó. **Chạy cả dự án** thì vẫn làm lại từ đầu theo `requirements.md`.
 - Bấm biểu tượng bánh răng để chọn file yêu cầu, model cho từng role và model ở vòng sửa cuối. Giá trị ban đầu lấy từ `.env`; `(không đổi)` ở model vòng cuối nghĩa là không nâng model.
 - Bật **Chạy thử (mock)** để thử luồng không tốn token; **Độ trễ mỗi bước** làm chậm mỗi bước để kịp nhìn Backend và Frontend chạy song song.
 - Bấm nút **Chạy** (hoặc nút tên dự án) để bắt đầu. Nếu có role dùng model thật, giao diện hiện bảng role → model để xác nhận như `main.py`. Mỗi lúc chỉ một lần chạy; bấm nút dừng thì graph dừng sau bước đang chạy.

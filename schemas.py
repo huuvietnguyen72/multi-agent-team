@@ -118,3 +118,12 @@ class ProjectDraft(BaseModel):
     requirements: str = Field(description="Toàn bộ nội dung requirements.md theo đúng cấu trúc mẫu")
     stack: str = Field(description="Toàn bộ nội dung stack.md theo đúng cấu trúc mẫu")
     test_command: str = Field(default="", description="Lệnh chạy test của backend, ví dụ 'python -m pytest -q'")
+
+
+class ModuleDraft(BaseModel):
+    """Bản nháp một module của dự án đang có (nút + Module mới trên giao diện)."""
+    title: str = Field(description="Tên ngắn của module, tiếng Việt, không có chữ 'Module' ở đầu")
+    slug: str = Field(description="Tên file: chữ thường không dấu, số và gạch nối, ví dụ gio-hang")
+    reply: str = Field(description="Một hai câu cho người dùng: đã soạn gì, giả định gì, cần họ kiểm tra gì")
+    requirements: str = Field(description="Toàn bộ nội dung yêu cầu của module theo đúng các mục trong skill, "
+                                          "không có dòng tiêu đề '#' đầu tiên")

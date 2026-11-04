@@ -39,6 +39,18 @@ def with_user_input(state, role: str, prompt: str) -> str:
     return prompt + "".join(f"\n\n{e}" for e in extra)
 
 
+def with_scope(state, prompt: str) -> str:
+    """Lượt chạy một module: nói rõ phạm vi và rằng phải làm tiếp trên code đang có."""
+    if not state.get("module"):
+        return prompt
+    return (f"# Phạm vi lượt này: module {state.get('module_title') or state['module']}\n\n"
+            "Dự án đã có code từ các module trước (nếu có, nó nằm trong prompt dưới dạng \"Code hiện tại\"). "
+            "Lượt này chỉ làm module này: kế hoạch, user story, test case và finding chỉ cho phần module thêm hoặc "
+            "đổi, cùng chỗ nó làm hỏng phần đang chạy. Giữ nguyên code không liên quan, không viết lại từ đầu. "
+            "Khi sửa một file đã có, trả về nội dung đầy đủ của file đó; file không đổi thì không trả về.\n\n---\n\n"
+            + prompt)
+
+
 def ask(role: str, node: str, state, prompt: str, schema):
     """Gọi model đã chọn cho `role`: state["models"] (chọn trên giao diện) hoặc MODEL / MODEL_<ROLE> trong .env,
     đổi sang model vòng cuối nếu đây là lần sửa cuối. Provider mock thì dùng agents/mock.py.
@@ -51,7 +63,7 @@ def ask(role: str, node: str, state, prompt: str, schema):
     try:
         if target.provider.type == "mock":
             return getattr(mock, node)(state)
-        return adapter(target.provider.type)(target, role, with_project_context(state, with_user_input(state, role, prompt)),
+        return adapter(target.provider.type)(target, role, with_project_context(state, with_scope(state, with_user_input(state, role, prompt))),
                                              schema)
     finally:
         info = {"model": target.label, "seconds": round(time.monotonic() - start, 1)}
