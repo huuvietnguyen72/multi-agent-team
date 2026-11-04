@@ -58,3 +58,21 @@ def test_format_models_code_quotes_names(tmp_path):
     setup = prepare_run("library", models={"backend": "opencode-go:glm-5.3"}, escalate={}, mock=False,
                         run_id="t", output_dir=tmp_path)
     assert "backend=`opencode-go:glm-5.3`" in format_models(setup, code=True)
+
+
+def test_format_models_whole_team(tmp_path):
+    setup = prepare_run("library", mock=True, run_id="t", output_dir=tmp_path)
+    assert format_models(setup) == "cả team=mock"
+
+
+def test_archive_output_moves_previous_run(tmp_path):
+    from tools.run import HISTORY_KEEP, archive_output
+    out = tmp_path / "output"
+    assert archive_output(out, "r0") is None                 # chưa có gì
+    for i in range(HISTORY_KEEP + 2):
+        (out / "docs").mkdir(parents=True, exist_ok=True)
+        (out / "docs" / "a.md").write_text(str(i))
+        moved = archive_output(out, f"r{i + 1:02d}")
+        assert moved.name == f"r{i + 1:02d}" and (moved / "docs" / "a.md").read_text() == str(i)
+        assert out.is_dir() and not any(out.iterdir())
+    assert len(list((tmp_path / "output_history").iterdir())) == HISTORY_KEEP

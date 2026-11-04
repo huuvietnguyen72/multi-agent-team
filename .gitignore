@@ -5,6 +5,8 @@ __pycache__/
 runs/*.jsonl
 output/
 projects/*/output/
+projects/*/output_history/
 providers.local.toml
-.chainlit/translations/
+.chainlit/translations/*
+!.chainlit/translations/vi-VN.json
 .files/

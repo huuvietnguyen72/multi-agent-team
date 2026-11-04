@@ -30,7 +30,7 @@ def mock_updates(tmp_path, monkeypatch):
 
 def test_message_for_every_mock_step(mock_updates):
     msgs = [(node, message_for(node, upd)) for node, upd in mock_updates]
-    assert all(m.strip() and "_model:_ `mock`" in m for _, m in msgs)
+    assert all(m.strip() and "_model:_" not in m for _, m in msgs)  # chạy mock: không có dòng model, thời gian
     assert "CR-01" in next(m for n, m in msgs if n == "reviewer")
     assert "BUG-01" in next(m for n, m in msgs if n == "tester")
     assert "ACCEPTED" in next(m for n, m in msgs if n == "pm_accept")
@@ -101,4 +101,4 @@ def test_summary_text_mock(tmp_path, monkeypatch):
     final = build_graph().invoke(setup.state, setup.config)
     text = summary_text(final, setup, 75.0)
     assert "ACCEPTED" in text and "15 bước" in text
-    assert f"runs/{setup.run_id}.jsonl" in text and "pm=mock" in text
+    assert f"runs/{setup.run_id}.jsonl" in text and "cả team=`mock`" in text

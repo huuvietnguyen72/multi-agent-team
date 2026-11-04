@@ -1,0 +1,11 @@
+/* Nút hành động (chọn dự án, Chạy, Chi tiết, tên file, Đồng ý/Không): Chainlit vẽ như chữ thường, khó nhận ra là nút */
+[data-step-type="assistant_message"] button[id]:not([id^="step-"]) {
+  border: 1px solid hsl(var(--border));
+  color: hsl(var(--foreground));
+  margin: 0 6px 6px 0;
+}
+[data-step-type="assistant_message"] button[id]:not([id^="step-"]):hover {
+  border-color: hsl(var(--primary));
+}
+/* Bảng trong tin nhắn (kế hoạch, xác nhận model): chữ nhỏ hơn để không chiếm cả màn hình */
+[data-step-type="assistant_message"] table { font-size: 0.875rem; }

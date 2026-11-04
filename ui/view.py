@@ -64,6 +64,8 @@ def _last_log(update: dict) -> dict:
 
 def _footer(data: dict) -> str:
     model = data.get("model", "?")
+    if model == "mock":
+        return ""  # chạy mock: model nào cũng là mock, thời gian luôn 0, dòng này chỉ gây rối
     seconds = data.get("seconds")
     line = f"_model:_ `{model}`" + (f" _· {seconds:g} giây_" if seconds is not None else "")
     if data.get("escalated_from"):
@@ -112,7 +114,8 @@ def _body(node: str, update: dict, summary: str) -> str:
 def message_for(node: str, update: dict) -> str:
     """Markdown của tin nhắn cho một node vừa xong (FR-06), dòng cuối là model và thời gian."""
     entry = _last_log(update)
-    return _body(node, update, entry.get("summary", "")) + "\n\n" + _footer(entry.get("data") or {})
+    footer = _footer(entry.get("data") or {})
+    return _body(node, update, entry.get("summary", "")) + (f"\n\n{footer}" if footer else "")
 
 
 MAX_TEXT_BYTES = 1_000_000
@@ -183,7 +186,7 @@ def summary_text(final: dict, setup, seconds: float) -> str:
         "",
         f"- {len(log)} bước, {final.get('review_round', 0)} lần trả BA, {final.get('iteration', 0)} vòng test",
         f"- Thời gian: {minutes} phút {secs:02d} giây",
-        f"- Model: {format_models(setup)}",
+        f"- Model: {format_models(setup, code=True)}",
     ]
     if changes:
         lines += ["- Đổi model ở vòng sửa cuối:"] + ["  " + c for c in changes]

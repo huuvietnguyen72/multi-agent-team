@@ -29,7 +29,8 @@ from graph import build_graph  # noqa: E402
 from agents.providers import (ESCALATABLE, ROLES, default_specs, escalation_specs, load_providers,  # noqa: E402
                               model_choices)
 from tools.project import list_projects, load_project  # noqa: E402
-from tools.run import format_models, prepare_run  # noqa: E402
+from tools.file_tools import display  # noqa: E402
+from tools.run import archive_output, format_models, prepare_run  # noqa: E402
 from ui.manager import Command, ask_manager, build_patch, command_from, manager_spec, validate  # noqa: E402
 from ui.runner import RunControl, exclusive_run, stream_events  # noqa: E402
 from ui.turns import Turns, file_changes  # noqa: E402
@@ -104,8 +105,12 @@ async def on_chat_start():
         await cl.Message(content="Chưa có dự án nào. Chép `projects/_template/` thành `projects/<tên>/` rồi tải lại trang.").send()
         return
     actions = [cl.Action(name="pick_project", payload={"project": p}, label=_project_title(p)) for p in projects]
-    await cl.Message(content="Xin chào. Chọn một dự án để team bắt đầu làm. Model của từng role nằm trong phần "
-                             "cài đặt (biểu tượng bánh răng cạnh ô nhập); thay đổi ở đó không ghi vào `.env`.",
+    await cl.Message(content="**Chọn dự án** để team bắt đầu làm.\n\n"
+                             "- Biểu tượng bánh răng cạnh ô nhập: đổi model từng role, hoặc bật chạy thử (mock) "
+                             "không tốn token. Thay đổi ở đó không ghi vào `.env`.\n"
+                             "- Trong lúc team chạy: gõ vào ô nhập để hỏi Quản lý, hoặc ra lệnh như "
+                             "\"dừng lại\", \"bỏ qua CR-02\", \"dặn frontend: ...\".\n"
+                             "- Bấm **Chi tiết** dưới tin của một role để xem từng lượt và phần code đã sửa.",
                      actions=actions).send()
     if esc_error:
         await cl.Message(content=f"Cấu hình model vòng sửa cuối chưa đúng, tạm để \"{KEEP}\": {esc_error}").send()
@@ -360,7 +365,9 @@ async def _run(setup, *, mock: bool, delay: float) -> None:
     cl.user_session.set("turns", turns)
     task_list = cl.TaskList()
     await _send_tasks(task_list, progress, "Đang chạy")
-    await cl.Message(content=f"Bắt đầu lượt `{setup.run_id}` · {format_models(setup, code=True)}").send()
+    moved = archive_output(out_dir, setup.run_id)
+    note = f"\n\nĐầu ra lượt trước đã chuyển sang `{display(moved)}`." if moved else ""
+    await cl.Message(content=f"Bắt đầu lượt `{setup.run_id}` · {format_models(setup, code=True)}{note}").send()
 
     placeholders: dict[str, cl.Message] = {}
     tickers: dict[str, asyncio.Task] = {}

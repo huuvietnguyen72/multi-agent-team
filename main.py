@@ -58,7 +58,7 @@ def main() -> None:
         have = ", ".join(list_projects()) or "(chưa có; chép projects/_template/ thành projects/<tên>/)"
         sys.exit(f"Cần chọn dự án: --project <tên>. Các dự án hiện có: {have}")
     from tools.file_tools import display
-    from tools.run import format_models, prepare_run
+    from tools.run import archive_output, format_models, prepare_run
     try:
         setup = prepare_run(args.project, args.requirements)  # nạp dự án, kiểm tra model và key theo role
     except FileNotFoundError as e:
@@ -76,6 +76,8 @@ def main() -> None:
             answer = ""
         if answer.strip().lower() not in ("y", "yes", "c", "có"):
             sys.exit("\nĐã hủy. Thêm --yes để chạy không cần hỏi, hoặc --model mock để thử không tốn token.")
+    if moved := archive_output(project.output_dir, run_id):
+        print(f"   Đầu ra lượt trước chuyển sang {display(moved)}")
     print(f"== Run {run_id} · {project.title} ({display(project.requirements_path)}) · log: runs/{run_id}.jsonl ==")
     print(f"   {models}")
     final = app.invoke(setup.state, config=setup.config)
