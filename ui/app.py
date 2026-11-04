@@ -332,6 +332,9 @@ async def on_run(action: cl.Action):
             actions=[cl.Action(name="confirm", payload={"ok": True}, label="Chạy"),
                      cl.Action(name="cancel", payload={"ok": False}, label="Hủy")],
             timeout=600).send()
+        # AskActionMessage xong thì Chainlit báo "đang chạy" (task_start), khung nhập bị khóa và nút gửi thành nút
+        # dừng cho tới hết lượt. Trả khung nhập lại để chat được với Quản lý trong lúc team chạy.
+        await cl.context.emitter.task_end()
         if not res or not (res.get("payload") or {}).get("ok"):
             await cl.Message(content="Đã hủy, chưa gọi model nào.").send()
             return
