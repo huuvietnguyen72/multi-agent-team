@@ -16,7 +16,7 @@ copy .env.example .env              # macOS/Linux: cp .env.example .env
 chainlit run ui/app.py              # mở http://localhost:8000, đăng nhập admin / admin
 ```
 
-Chọn dự án **Ví dụ · Danh sách việc cần làm**, bật **Chạy thử (mock)** ở biểu tượng bánh răng rồi bấm **Chạy**: cả luồng chạy bằng kịch bản giả, không tốn token. Sau đó làm theo mục [Tạo dự án mới](#tạo-dự-án-mới) và [Model và provider](#model-và-provider) để chạy cho dự án của bạn với model thật.
+Ô chọn ở góc trên là danh sách dự án (giống Project của Claude). Chọn **Ví dụ · Danh sách việc cần làm**, bật **Chạy thử (mock)** ở biểu tượng bánh răng rồi bấm **Chạy**: cả luồng chạy bằng kịch bản giả, không tốn token. Sau đó làm theo mục [Tạo dự án mới](#tạo-dự-án-mới) và [Model và provider](#model-và-provider) để chạy cho dự án của bạn với model thật.
 
 ## Cách hoạt động
 
@@ -63,7 +63,8 @@ pip install -r requirements.txt     # đã có chainlit; cần Python 3.11 đế
 chainlit run ui/app.py              # chạy từ thư mục gốc repo, mở http://localhost:8000
 ```
 
-- Bấm biểu tượng bánh răng để chọn dự án, file yêu cầu, model cho từng role và model ở vòng sửa cuối. Giá trị ban đầu lấy từ `.env`; `(không đổi)` ở model vòng cuối nghĩa là không nâng model.
+- **Dự án** (ô chọn ở góc trên): mỗi thư mục trong `projects/` là một mục. Chọn một dự án thì trang chào hiện mô tả, số lượt đã chạy và kết quả gần nhất, các cuộc chat trước của dự án đó (bấm để mở lại), và các nút **Chạy**, **Mã nguồn**, **Yêu cầu và stack** (sửa `requirements.md`, `stack.md`, lệnh test ngay trên giao diện). Mục **+ Dự án mới**: gõ ý tưởng vài câu, PM soạn `requirements.md` và `stack.md` theo mẫu (skill `skills/setup/SKILL.md`, dùng model của PM; khi bật mock thì chỉ điền mẫu), sửa ở khung bên phải hoặc gõ yêu cầu để PM soạn lại, rồi bấm **Lưu và tạo dự án**: thư mục `projects/<tên>/` được tạo và chạy được ngay trong cuộc chat đó; tải lại trang thì dự án có trong ô chọn.
+- Bấm biểu tượng bánh răng để chọn file yêu cầu, model cho từng role và model ở vòng sửa cuối. Giá trị ban đầu lấy từ `.env`; `(không đổi)` ở model vòng cuối nghĩa là không nâng model.
 - Bật **Chạy thử (mock)** để thử luồng không tốn token; **Độ trễ mỗi bước** làm chậm mỗi bước để kịp nhìn Backend và Frontend chạy song song.
 - Bấm nút **Chạy** (hoặc nút tên dự án) để bắt đầu. Nếu có role dùng model thật, giao diện hiện bảng role → model để xác nhận như `main.py`. Mỗi lúc chỉ một lần chạy; bấm nút dừng thì graph dừng sau bước đang chạy.
 - Nút **Chi tiết** ở mỗi tin nhắn mở bảng của role đó: từng lượt làm (bản đầu, sửa CR-xx, sửa BUG-xx), lượt đang chạy đến bước nào (nhận việc, đọc file, gọi model, nhận trả lời, ghi tệp), và phần sửa từng file dạng diff có dòng xóa (đỏ) và dòng thêm (xanh). Trong một lần gọi model thì không chia nhỏ hơn được, nên bước "gọi model" chỉ hiện số ký tự đã nhận khi provider có streaming.
@@ -76,7 +77,7 @@ chainlit run ui/app.py              # chạy từ thư mục gốc repo, mở ht
   | "Bỏ qua CR-04, báo nhầm" | finding (hoặc bug BUG-xx) không còn tính là phải sửa, Reviewer không nêu lại |
   | "Dặn frontend: hiện lỗi từ trường error" | thêm lời dặn vào prompt lượt làm kế tiếp của role đó, một lần |
 
-- **Mã nguồn** (nút dưới tin chọn dự án, tin bắt đầu và tin kết quả): khung bên phải có cây thư mục đầu ra của dự án, ô lọc theo tên file, bấm file để xem code có tô màu cú pháp. Trong lúc team chạy, file mới ghi hiện lên ngay. Ô **Bản đầu ra** chọn lượt mới nhất (`output/`) hoặc một lượt cũ trong `output_history/` (giữ 5 lượt gần nhất; trước mỗi lượt, đầu ra cũ được chuyển vào đây).
+- **Mã nguồn** (nút dưới tin chào của dự án, tin bắt đầu và tin kết quả): khung bên phải có cây thư mục đầu ra của dự án, ô lọc theo tên file, bấm file để xem code có tô màu cú pháp. Trong lúc team chạy, file mới ghi hiện lên ngay. Ô **Bản đầu ra** chọn lượt mới nhất (`output/`) hoặc một lượt cũ trong `output_history/` (giữ 5 lượt gần nhất; trước mỗi lượt, đầu ra cũ được chuyển vào đây).
 - **Lịch sử chat**: giao diện yêu cầu đăng nhập, tài khoản là `UI_USERNAME` / `UI_PASSWORD` trong `.env` (chưa đặt thì `admin` / `admin`). Mọi tin nhắn lưu vào `.chainlit/history.db` (SQLite, không commit), các cuộc chat cũ nằm ở thanh bên trái, tên là dự án và mã lượt. Mở lại một cuộc chat cũ thì có nút **Mã nguồn** và **Chi tiết** của từng role cho lượt đó, và hỏi Quản lý về lượt đó được (state cuối của lượt lưu ở `runs/<mã lượt>.ui.json`). Lệnh như dừng hay bỏ qua chỉ áp được cho lượt đang chạy.
 
   Lệnh được áp giữa hai bước của graph (LangGraph `update_state` rồi chạy tiếp từ checkpoint), nên không cắt ngang một lần gọi model và không thêm vòng sửa nào. Mọi lệnh đã áp được ghi trong `final_report.md`, mục "Can thiệp của người dùng". Model của Quản lý: ô chọn trong cài đặt, hoặc `MODEL_MANAGER` trong `.env`, mặc định giống PM; khi bật mock thì dùng Quản lý mock hiểu lệnh theo từ khóa.
@@ -89,7 +90,13 @@ chainlit run ui/app.py              # chạy từ thư mục gốc repo, mở ht
 | --- | --- |
 | ![](docs/images/ui-code.png) | ![](docs/images/ui-history.png) |
 
+| Danh sách dự án | Tạo dự án mới |
+| --- | --- |
+| ![](docs/images/ui-projects.png) | ![](docs/images/ui-new-project.png) |
+
 ## Tạo dự án mới
+
+Cách nhanh nhất là mục **+ Dự án mới** trên giao diện (xem mục Giao diện). Làm tay:
 
 1. Chép `projects/_template/` thành `projects/<tên-dự-án>/`.
 2. Sửa `requirements.md`: vai trò người dùng, chức năng `F1..Fn`, business rules `BR-xx` (đo được, kèm đúng thông báo lỗi), ví dụ kiểm thử.
