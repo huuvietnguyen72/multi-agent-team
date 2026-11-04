@@ -10,3 +10,7 @@ providers.local.toml
 .chainlit/translations/*
 !.chainlit/translations/vi-VN.json
 .files/
+projects/*/.output_run
+runs/*.ui.json
+.chainlit/history.db
+.chainlit/auth_secret

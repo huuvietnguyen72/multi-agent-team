@@ -66,13 +66,15 @@ def test_format_models_whole_team(tmp_path):
 
 
 def test_archive_output_moves_previous_run(tmp_path):
-    from tools.run import HISTORY_KEEP, archive_output
+    from tools.run import HISTORY_KEEP, archive_output, output_run_id
     out = tmp_path / "output"
     assert archive_output(out, "r0") is None                 # chưa có gì
     for i in range(HISTORY_KEEP + 2):
         (out / "docs").mkdir(parents=True, exist_ok=True)
         (out / "docs" / "a.md").write_text(str(i))
         moved = archive_output(out, f"r{i + 1:02d}")
-        assert moved.name == f"r{i + 1:02d}" and (moved / "docs" / "a.md").read_text() == str(i)
+        previous = "r0" if i == 0 else f"r{i:02d}"             # thư mục mang mã của lượt đã ghi đầu ra đó
+        assert moved.name == previous and (moved / "docs" / "a.md").read_text() == str(i)
         assert out.is_dir() and not any(out.iterdir())
     assert len(list((tmp_path / "output_history").iterdir())) == HISTORY_KEEP
+    assert output_run_id(out) == f"r{HISTORY_KEEP + 2:02d}"

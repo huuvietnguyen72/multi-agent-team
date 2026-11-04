@@ -65,11 +65,18 @@ chainlit run ui/app.py              # chạy từ thư mục gốc repo, mở ht
   | "Bỏ qua CR-04, báo nhầm" | finding (hoặc bug BUG-xx) không còn tính là phải sửa, Reviewer không nêu lại |
   | "Dặn frontend: hiện lỗi từ trường error" | thêm lời dặn vào prompt lượt làm kế tiếp của role đó, một lần |
 
+- **Mã nguồn** (nút dưới tin chọn dự án, tin bắt đầu và tin kết quả): khung bên phải có cây thư mục đầu ra của dự án, ô lọc theo tên file, bấm file để xem code có tô màu cú pháp. Trong lúc team chạy, file mới ghi hiện lên ngay. Ô **Bản đầu ra** chọn lượt mới nhất (`output/`) hoặc một lượt cũ trong `output_history/` (giữ 5 lượt gần nhất; trước mỗi lượt, đầu ra cũ được chuyển vào đây).
+- **Lịch sử chat**: giao diện yêu cầu đăng nhập, tài khoản là `UI_USERNAME` / `UI_PASSWORD` trong `.env` (chưa đặt thì `admin` / `admin`). Mọi tin nhắn lưu vào `.chainlit/history.db` (SQLite, không commit), các cuộc chat cũ nằm ở thanh bên trái, tên là dự án và mã lượt. Mở lại một cuộc chat cũ thì có nút **Mã nguồn** và **Chi tiết** của từng role cho lượt đó, và hỏi Quản lý về lượt đó được (state cuối của lượt lưu ở `runs/<mã lượt>.ui.json`). Lệnh như dừng hay bỏ qua chỉ áp được cho lượt đang chạy.
+
   Lệnh được áp giữa hai bước của graph (LangGraph `update_state` rồi chạy tiếp từ checkpoint), nên không cắt ngang một lần gọi model và không thêm vòng sửa nào. Mọi lệnh đã áp được ghi trong `final_report.md`, mục "Can thiệp của người dùng". Model của Quản lý: ô chọn trong cài đặt, hoặc `MODEL_MANAGER` trong `.env`, mặc định giống PM; khi bật mock thì dùng Quản lý mock hiểu lệnh theo từ khóa.
 
 | Đang chạy | Chi tiết một role | Kết thúc |
 | --- | --- | --- |
 | ![](docs/images/ui-running.png) | ![](docs/images/ui-role-detail.png) | ![](docs/images/ui-done.png) |
+
+| Mã nguồn | Mở lại cuộc chat cũ |
+| --- | --- |
+| ![](docs/images/ui-code.png) | ![](docs/images/ui-history.png) |
 
 ## Tạo dự án mới
 
