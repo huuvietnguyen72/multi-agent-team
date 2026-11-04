@@ -18,42 +18,42 @@
     },
     "auth": {
         "login": {
-            "title": "Login to access the app",
+            "title": "Đăng nhập",
             "form": {
                 "email": {
-                    "label": "Email address",
-                    "required": "email is a required field",
-                    "placeholder": "me@example.com"
+                    "label": "Tài khoản",
+                    "required": "Cần nhập tài khoản",
+                    "placeholder": "admin"
                 },
                 "password": {
-                    "label": "Password",
-                    "required": "password is a required field"
+                    "label": "Mật khẩu",
+                    "required": "Cần nhập mật khẩu"
                 },
                 "actions": {
-                    "signin": "Sign In"
+                    "signin": "Đăng nhập"
                 },
                 "alternativeText": {
-                    "or": "OR"
+                    "or": "HOẶC"
                 }
             },
             "errors": {
-                "default": "Unable to sign in",
-                "signin": "Try signing in with a different account",
-                "oauthSignin": "Sign in failed. Please try again, or use a different sign-in method.",
-                "redirectUriMismatch": "The redirect URI is not matching the oauth app configuration",
-                "oauthCallback": "Try signing in with a different account",
-                "oauthCreateAccount": "Try signing in with a different account",
-                "emailCreateAccount": "Try signing in with a different account",
-                "callback": "Try signing in with a different account",
-                "oauthAccountNotLinked": "To confirm your identity, sign in with the same account you used originally",
-                "emailSignin": "The e-mail could not be sent",
-                "emailVerify": "Please verify your email, a new email has been sent",
-                "credentialsSignin": "Sign in failed. Check the details you provided are correct",
-                "sessionRequired": "Please sign in to access this page"
+                "default": "Không đăng nhập được, thử lại.",
+                "signin": "Không đăng nhập được, thử lại.",
+                "oauthSignin": "Không đăng nhập được, thử lại.",
+                "redirectUriMismatch": "Không đăng nhập được, thử lại.",
+                "oauthCallback": "Không đăng nhập được, thử lại.",
+                "oauthCreateAccount": "Không đăng nhập được, thử lại.",
+                "emailCreateAccount": "Không đăng nhập được, thử lại.",
+                "callback": "Không đăng nhập được, thử lại.",
+                "oauthAccountNotLinked": "Không đăng nhập được, thử lại.",
+                "emailSignin": "Không đăng nhập được, thử lại.",
+                "emailVerify": "Không đăng nhập được, thử lại.",
+                "credentialsSignin": "Sai tài khoản hoặc mật khẩu (UI_USERNAME / UI_PASSWORD trong .env, mặc định admin/admin).",
+                "sessionRequired": "Cần đăng nhập để xem trang này."
             }
         },
         "provider": {
-            "continue": "Continue with {{provider}}"
+            "continue": "Tiếp tục với {{provider}}"
         }
     },
     "chat": {
@@ -136,29 +136,29 @@
     },
     "threadHistory": {
         "sidebar": {
-            "title": "Past Chats",
+            "title": "Các cuộc chat cũ",
             "filters": {
-                "search": "Search",
-                "placeholder": "Search conversations..."
+                "search": "Tìm",
+                "placeholder": "Tìm trong các cuộc chat..."
             },
             "timeframes": {
-                "today": "Today",
-                "yesterday": "Yesterday",
-                "previous7days": "Previous 7 days",
-                "previous30days": "Previous 30 days"
+                "today": "Hôm nay",
+                "yesterday": "Hôm qua",
+                "previous7days": "7 ngày trước",
+                "previous30days": "30 ngày trước"
             },
-            "empty": "No threads found",
+            "empty": "Chưa có cuộc chat nào",
             "actions": {
-                "close": "Close sidebar",
-                "open": "Open sidebar"
+                "close": "Đóng thanh bên",
+                "open": "Mở thanh bên"
             }
         },
         "thread": {
-            "untitled": "Untitled Conversation",
+            "untitled": "Cuộc chat chưa đặt tên",
             "menu": {
-                "rename": "Rename",
-                "share": "Share",
-                "delete": "Delete"
+                "rename": "Đổi tên",
+                "share": "Chia sẻ",
+                "delete": "Xóa"
             },
             "actions": {
                 "share": {
@@ -175,22 +175,22 @@
                     }
                 },
                 "delete": {
-                    "title": "Confirm deletion",
-                    "description": "This will delete the thread as well as its messages and elements. This action cannot be undone",
-                    "success": "Chat deleted",
-                    "inProgress": "Deleting chat"
+                    "title": "Xóa cuộc chat?",
+                    "description": "Xóa cuộc chat cùng mọi tin nhắn của nó, không khôi phục được. Code trong projects/ không bị xóa.",
+                    "success": "Đã xóa cuộc chat",
+                    "inProgress": "Đang xóa"
                 },
                 "rename": {
-                    "title": "Rename Thread",
-                    "description": "Enter a new name for this thread",
+                    "title": "Đổi tên cuộc chat",
+                    "description": "Nhập tên mới",
                     "form": {
                         "name": {
-                            "label": "Name",
-                            "placeholder": "Enter new name"
+                            "label": "Tên",
+                            "placeholder": "Tên mới"
                         }
                     },
-                    "success": "Thread renamed!",
-                    "inProgress": "Renaming thread"
+                    "success": "Đã đổi tên",
+                    "inProgress": "Đang đổi tên"
                 }
             }
         }
@@ -209,7 +209,7 @@
             "button": "Phiên mới",
             "dialog": {
                 "title": "Mở phiên mới",
-                "description": "Phiên hiện tại sẽ bị xóa khỏi màn hình (đầu ra trong projects/ vẫn giữ nguyên). Tiếp tục?",
+                "description": "Mở cuộc chat mới. Cuộc chat hiện tại vẫn được lưu ở thanh bên trái.",
                 "tooltip": "Phiên mới"
             }
         },
@@ -218,7 +218,7 @@
                 "settings": "Cài đặt",
                 "settingsKey": "S",
                 "apiKeys": "API Keys",
-                "logout": "Logout"
+                "logout": "Đăng xuất"
             }
         }
     },

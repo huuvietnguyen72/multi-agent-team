@@ -90,21 +90,38 @@ def prepare_run(project: str, requirements: str | None = None, *,
 HISTORY_KEEP = 5  # số bản đầu ra cũ giữ lại trong output_history/
 
 
-def archive_output(out_dir: Path, run_id: str) -> Path | None:
-    """Chuyển đầu ra của lượt trước sang <dự án>/output_history/<run_id>/ để lượt này bắt đầu từ thư mục trống:
-    file cũ không lẫn vào kết quả mới, và phần sửa (diff) của "bản đầu" so với rỗng chứ không so với lượt trước.
-    Giữ HISTORY_KEEP bản gần nhất. Trả về thư mục đã chuyển tới, None nếu không có gì để chuyển."""
-    out_dir = Path(out_dir)
-    if not out_dir.is_dir() or not any(out_dir.iterdir()):
+OUTPUT_MARK = ".output_run"  # nằm cạnh output/: lượt nào đã ghi output/ hiện tại
+
+
+def output_run_id(out_dir: Path) -> str | None:
+    """Mã lượt đã tạo thư mục output/ hiện tại (ghi bởi archive_output), None nếu chưa biết."""
+    mark = Path(out_dir).parent / OUTPUT_MARK
+    try:
+        return mark.read_text(encoding="utf-8").strip() or None
+    except OSError:
         return None
-    history = out_dir.parent / "output_history"
-    history.mkdir(parents=True, exist_ok=True)
-    dest = history / run_id
-    out_dir.rename(dest)
-    out_dir.mkdir()
-    for old in sorted(p for p in history.iterdir() if p.is_dir())[:-HISTORY_KEEP]:
-        shutil.rmtree(old, ignore_errors=True)
-    return dest
+
+
+def archive_output(out_dir: Path, run_id: str) -> Path | None:
+    """Chuyển đầu ra của lượt trước sang <dự án>/output_history/<mã lượt trước>/ để lượt `run_id` bắt đầu từ thư
+    mục trống: file cũ không lẫn vào kết quả mới, và phần sửa (diff) của "bản đầu" so với rỗng chứ không so với
+    lượt trước. Giữ HISTORY_KEEP bản gần nhất. Trả về thư mục đã chuyển tới, None nếu không có gì để chuyển."""
+    out_dir = Path(out_dir)
+    previous = output_run_id(out_dir) or f"truoc-{run_id}"
+    moved = None
+    if out_dir.is_dir() and any(out_dir.iterdir()):
+        history = out_dir.parent / "output_history"
+        history.mkdir(parents=True, exist_ok=True)
+        dest = history / previous
+        if dest.exists():
+            shutil.rmtree(dest, ignore_errors=True)
+        out_dir.rename(dest)
+        for old in sorted(p for p in history.iterdir() if p.is_dir())[:-HISTORY_KEEP]:
+            shutil.rmtree(old, ignore_errors=True)
+        moved = dest
+    out_dir.mkdir(parents=True, exist_ok=True)
+    (out_dir.parent / OUTPUT_MARK).write_text(run_id, encoding="utf-8")
+    return moved
 
 
 def format_models(setup: RunSetup, code: bool = False) -> str:
