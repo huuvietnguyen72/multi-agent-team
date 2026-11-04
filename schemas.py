@@ -108,3 +108,13 @@ class ManagerReply(BaseModel):
     role: Literal["ba", "backend", "frontend", "reviewer", "tester", ""] = Field(
         default="", description="add_note: role nhận ghi chú")
     note: str = Field(default="", description="add_note: nội dung dặn; dismiss_finding: lý do bỏ qua")
+
+
+class ProjectDraft(BaseModel):
+    """Bản nháp dự án mới từ ý tưởng của người dùng (nút Tạo dự án mới trên giao diện)."""
+    title: str = Field(description="Tên hiển thị ngắn của dự án, tiếng Việt")
+    slug: str = Field(description="Tên thư mục: chữ thường không dấu, số và gạch nối, ví dụ quan-ly-kho")
+    reply: str = Field(description="Một hai câu cho người dùng: đã soạn gì, giả định gì, cần họ kiểm tra gì")
+    requirements: str = Field(description="Toàn bộ nội dung requirements.md theo đúng cấu trúc mẫu")
+    stack: str = Field(description="Toàn bộ nội dung stack.md theo đúng cấu trúc mẫu")
+    test_command: str = Field(default="", description="Lệnh chạy test của backend, ví dụ 'python -m pytest -q'")
