@@ -165,7 +165,12 @@ def check_models(models: dict[str, str] | None, escalate: dict[str, str] | None,
         try:
             target = target_for(role, providers, spec=spec)
         except ValueError as e:
-            problems.append(f"{role}: {_strip_role(role, str(e))}")
+            msg = str(e)
+            if msg.startswith(("MODEL:", "--model:")):  # lỗi chung cho cả team: báo một lần
+                if msg not in problems:
+                    problems.append(msg)
+            else:
+                problems.append(f"{role}: {_strip_role(role, msg)}")
             continue
         if msg := _key_problem(target):
             problems.append(f"{role}: {msg}")
