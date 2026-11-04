@@ -14,7 +14,7 @@ def test_save_and_load_run_keeps_state_and_turns(tmp_path):
     turns.start("backend", {}, 0.0)
     turns.finish("backend", [diff_file("backend/A.java", None, "class A {}\n")], {"model": "mock"}, 2.0)
     turns.start("tester", {}, 3.0)  # còn chạy khi lưu (app tắt giữa chừng)
-    save_run("r1", {"final_status": "ACCEPTED", "bugs": []}, turns, project="library", runs_dir=tmp_path)
+    save_run("r1", {"final_status": "ACCEPTED", "bugs": []}, turns, project="example", runs_dir=tmp_path)
     values, loaded = load_run("r1", runs_dir=tmp_path)
     assert values["final_status"] == "ACCEPTED"
     backend = loaded.of("Backend")[0]
@@ -45,14 +45,14 @@ def test_data_layer_roundtrip(tmp_path):
     async def run():
         dl = make_data_layer(tmp_path / "h.db")
         user = await dl.create_user(User(identifier="admin", metadata={"role": "admin"}))
-        await dl.update_thread("t1", name="Thư viện · r1", user_id=user.id, metadata={"run_ref": {"run_id": "r1"}},
+        await dl.update_thread("t1", name="Ví dụ · r1", user_id=user.id, metadata={"run_ref": {"run_id": "r1"}},
                                tags=["x"])
         thread = await dl.get_thread("t1")
         await dl.engine.dispose()
         return thread
 
     thread = asyncio.run(run())
-    assert thread["name"] == "Thư viện · r1" and thread["metadata"]["run_ref"]["run_id"] == "r1"
+    assert thread["name"] == "Ví dụ · r1" and thread["metadata"]["run_ref"]["run_id"] == "r1"
     assert thread["tags"] == ["x"]
 
 

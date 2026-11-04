@@ -61,7 +61,7 @@ def test_turn_task_cases():
 
 
 def test_mock_turns_cover_fixes(tmp_path):
-    setup = prepare_run("library", mock=True, output_dir=tmp_path)
+    setup = prepare_run("example", mock=True, output_dir=tmp_path)
     turns, before, phases = Turns(), {}, {}
     for e in stream_events(build_graph(), setup):
         now = time.monotonic()

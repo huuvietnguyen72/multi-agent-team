@@ -15,16 +15,16 @@ ROOT = Path(__file__).resolve().parent.parent
 
 def test_list_projects_hides_template():
     names = list_projects()
-    assert {"library", "library-borrow-detail"} <= set(names)
+    assert "example" in names
     assert "_template" not in names
 
 
 def test_load_project_reads_config_and_files():
-    p = load_project("library")
-    assert p.title == "Hệ thống mượn sách thư viện"
-    assert "Spring Boot" in p.stack and "BR-01" in p.requirements
-    assert p.test_command == "mvn -q -B test" and p.test_cwd == "backend"
-    assert p.output_dir == (PROJECTS / "library" / "output").resolve()
+    p = load_project("example")
+    assert p.title == "Ví dụ · Danh sách việc cần làm"
+    assert "FastAPI" in p.stack and "BR-01" in p.requirements
+    assert p.test_command == "python -m pytest -q" and p.test_cwd == "backend"
+    assert p.output_dir == (PROJECTS / "example" / "output").resolve()
 
 
 def test_template_is_loadable_and_has_no_test_command():
@@ -35,8 +35,8 @@ def test_template_is_loadable_and_has_no_test_command():
 def test_requirements_override_and_missing_project(tmp_path):
     other = tmp_path / "module.md"
     other.write_text("# Module X", encoding="utf-8")
-    assert load_project("library", requirements=other).requirements == "# Module X"
-    with pytest.raises(FileNotFoundError, match="library"):  # thông báo liệt kê dự án hiện có
+    assert load_project("example", requirements=other).requirements == "# Module X"
+    with pytest.raises(FileNotFoundError, match="example"):  # thông báo liệt kê dự án hiện có
         load_project("khong-ton-tai")
 
 
@@ -66,7 +66,7 @@ def test_project_test_command(monkeypatch, tmp_path):
     assert "chưa được sinh ra" in run_project_tests({"command": "echo", "cwd": "frontend"})
 
 
-# Từ chỉ có trong đề thư viện hoặc stack Java cụ thể: skills và mock phải dùng được cho mọi dự án.
+# Từ của một đề hay một stack cụ thể (ví dụ đề thư viện, Spring/Maven): skills và mock phải dùng được cho mọi dự án.
 DOMAIN_TERMS = ["thư viện", "mượn", "cuốn", "thủ thư", "sinh viên", "Spring", "JUnit", "Maven", "mvn",
                 "com.example", "BR-05", "localhost"]
 

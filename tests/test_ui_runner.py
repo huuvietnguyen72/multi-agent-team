@@ -18,7 +18,7 @@ def clean_env(monkeypatch):
 
 @pytest.fixture
 def setup(tmp_path):
-    return prepare_run("library", mock=True, output_dir=tmp_path)
+    return prepare_run("example", mock=True, output_dir=tmp_path)
 
 
 def test_events_cover_mock_run(setup):
