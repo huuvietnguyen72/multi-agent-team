@@ -9,3 +9,17 @@
 }
 /* Bảng trong tin nhắn (kế hoạch, xác nhận model): chữ nhỏ hơn để không chiếm cả màn hình */
 [data-step-type="assistant_message"] table { font-size: 0.875rem; }
+/* Tô màu cú pháp trong khung Mã nguồn (public/elements/CodeBrowser.jsx) */
+.cb-code .cb-k { color: #7c3aed; }
+.cb-code .cb-s { color: #15803d; }
+.cb-code .cb-c { color: #6b7280; font-style: italic; }
+.cb-code .cb-n { color: #b45309; }
+.cb-code .cb-t { color: #2563eb; }
+.cb-code .cb-a { color: #b45309; }
+.cb-code .cb-h { color: #2563eb; font-weight: 600; }
+.dark .cb-code .cb-k { color: #c4b5fd; }
+.dark .cb-code .cb-s { color: #86efac; }
+.dark .cb-code .cb-c { color: #9ca3af; }
+.dark .cb-code .cb-n, .dark .cb-code .cb-a { color: #fcd34d; }
+.dark .cb-code .cb-t, .dark .cb-code .cb-h { color: #93c5fd; }
+.cb-code > div:hover { background: hsl(var(--accent)); }

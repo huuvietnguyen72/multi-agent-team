@@ -492,6 +492,22 @@ def _output_dir() -> Path | None:
         return None
 
 
+def _code_root(source: str) -> Path | None:
+    out_dir = _output_dir()
+    return source_root(out_dir, source) if out_dir else None
+
+
+def _code_file(root: Path | None, path: str | None) -> dict | None:
+    """{"path", "content", "language", "size"} của file `path` trong `root`, {"path", "error"} nếu không đọc được."""
+    if not root or not path:
+        return None
+    got = read_file(root, path)
+    if got is None:
+        return {"path": path, "error": "Không đọc được file (đã bị xóa hoặc ở ngoài thư mục dự án)."}
+    text, lang = got
+    return {"path": path, "content": text, "language": lang, "size": len(text.encode("utf-8"))}
+
+
 async def _show_code(source: str | None = None, path: str | None = None) -> None:
     out_dir = _output_dir()
     if out_dir is None:
@@ -508,18 +524,20 @@ async def _show_code(source: str | None = None, path: str | None = None) -> None
     files, truncated = tree(root) if root else ([], False)
     if path is None and panel.get("kind") == "code" and panel.get("source") == source:
         path = panel.get("path")  # vẽ lại: giữ file đang xem
-    elements = []
-    content = read_file(root, path) if root and path else None
-    if content is None:
-        path = None
+    file = _code_file(root, path)
+    if file and "error" in file:
+        file = None
     props = {"sources": [{"id": s["id"], "label": s["label"]} for s in items] or [{"id": source, "label": "output/"}],
-             "source": source, "files": files, "truncated": truncated, "open": path}
-    elements.append(cl.CustomElement(name="CodeBrowser", props=props, display="side"))
-    if content is not None:
-        text, lang = content
-        elements.append(cl.Text(name=path, content=text, language=lang, display="side"))
-    cl.user_session.set("panel", {"kind": "code", "source": source, "path": path, "sent": time.monotonic()})
-    await _sidebar(elements, f"Mã nguồn · {path}" if path else "Mã nguồn")
+             "source": source, "files": files, "truncated": truncated, "file": file}
+    cl.user_session.set("panel", {"kind": "code", "source": source, "path": file and file["path"],
+                                  "sent": time.monotonic()})
+    title = "Mã nguồn"
+    if name := cl.user_session.get("project"):
+        try:
+            title = f"Mã nguồn · {load_project(name).title}"
+        except (FileNotFoundError, ValueError):
+            pass
+    await _sidebar([cl.CustomElement(name="CodeBrowser", props=props, display="side")], title)
 
 
 async def _refresh_code() -> None:
@@ -535,14 +553,26 @@ async def on_show_code(action: cl.Action):
     await _show_code(action.payload.get("source"))
 
 
-@cl.action_callback("code_source")
-async def on_code_source(action: cl.Action):
-    await _show_code(action.payload.get("source"), path="")
+@cl.action_callback("code_tree")
+async def on_code_tree(action: cl.Action):
+    """Khung Mã nguồn đổi bản đầu ra: trả về cây file, không vẽ lại khung."""
+    source = action.payload.get("source") or "output"
+    root = _code_root(source)
+    files, truncated = tree(root) if root else ([], False)
+    panel = cl.user_session.get("panel") or {}
+    cl.user_session.set("panel", {**panel, "kind": "code", "source": source})
+    return {"files": files, "truncated": truncated}
 
 
-@cl.action_callback("code_open")
-async def on_code_open(action: cl.Action):
-    await _show_code(action.payload.get("source"), action.payload.get("path"))
+@cl.action_callback("code_read")
+async def on_code_read(action: cl.Action):
+    """Khung Mã nguồn mở một file: trả về nội dung, không vẽ lại khung."""
+    source, path = action.payload.get("source") or "output", action.payload.get("path") or ""
+    file = _code_file(_code_root(source), path)
+    panel = cl.user_session.get("panel") or {}
+    cl.user_session.set("panel", {**panel, "kind": "code", "source": source,
+                                  "path": path if file and "error" not in file else None})
+    return file
 
 
 # ---------- lịch sử ----------
