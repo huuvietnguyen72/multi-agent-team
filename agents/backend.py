@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from agents.common import ask, dump
-from state import blocking_findings
+from state import blocking_findings, open_bugs
 from schemas import BackendOutput
 from tools.file_tools import display, output_dir, read_files, write_doc, write_files
 from tools.plane_client import plane
@@ -12,7 +12,7 @@ from tools.runlog import log_step
 def backend(state):
     task = state["plane_tasks"].get("BACKEND")
     plane.move_task(task, "In Progress")
-    my_bugs = [b for b in state.get("bugs", []) if b["owner"] == "backend"]
+    my_bugs = open_bugs(state, "backend")
     my_findings = blocking_findings(state, "backend")
     prompt = f"User stories:\n{dump(state['user_stories'])}"
     if my_bugs or my_findings:

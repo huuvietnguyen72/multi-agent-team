@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from agents.common import ask, dump
-from state import blocking_findings
+from state import blocking_findings, open_bugs
 from schemas import FrontendOutput
 from tools.file_tools import display, output_dir, read_files, write_files
 from tools.plane_client import plane
@@ -12,7 +12,7 @@ from tools.runlog import log_step
 def frontend(state):
     task = state["plane_tasks"].get("FRONTEND")
     plane.move_task(task, "In Progress")
-    my_bugs = [b for b in state.get("bugs", []) if b["owner"] == "frontend"]
+    my_bugs = open_bugs(state, "frontend")
     my_findings = blocking_findings(state, "frontend")
     prompt = f"User stories:\n{dump(state['user_stories'])}"
     if state.get("api_spec"):

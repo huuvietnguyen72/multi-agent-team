@@ -7,6 +7,7 @@ import time
 from agents import mock
 from agents.escalation import pick_target
 from agents.providers import ROLES, adapter, describe
+from state import notes_for
 from tools.runlog import progress, set_call_info
 
 __all__ = ["ROLES", "ask", "describe_providers", "dump", "with_project_context"]
@@ -26,6 +27,18 @@ def with_project_context(state, prompt: str) -> str:
     return f"# Stack và quy ước kỹ thuật của {title}\n\n{stack}\n\n---\n\n{prompt}"
 
 
+def with_user_input(state, role: str, prompt: str) -> str:
+    """Thêm ghi chú người dùng dặn riêng role này và các mục người dùng đã bỏ qua (qua Quản lý trên giao diện)."""
+    extra = []
+    if notes := notes_for(state, role):
+        extra.append("Người dùng dặn riêng cho lượt này (làm theo, trừ khi trái requirements):\n"
+                     + "\n".join(f"- {n['note']}" for n in notes))
+    if dismissed := state.get("dismissed"):
+        extra.append("Người dùng đã bỏ qua các finding/bug sau, không sửa và không nêu lại:\n"
+                     + "\n".join(f"- {k}: {why}" for k, why in dismissed.items()))
+    return prompt + "".join(f"\n\n{e}" for e in extra)
+
+
 def ask(role: str, node: str, state, prompt: str, schema):
     """Gọi model đã chọn cho `role`: state["models"] (chọn trên giao diện) hoặc MODEL / MODEL_<ROLE> trong .env,
     đổi sang model vòng cuối nếu đây là lần sửa cuối. Provider mock thì dùng agents/mock.py.
@@ -38,7 +51,8 @@ def ask(role: str, node: str, state, prompt: str, schema):
     try:
         if target.provider.type == "mock":
             return getattr(mock, node)(state)
-        return adapter(target.provider.type)(target, role, with_project_context(state, prompt), schema)
+        return adapter(target.provider.type)(target, role, with_project_context(state, with_user_input(state, role, prompt)),
+                                             schema)
     finally:
         info = {"model": target.label, "seconds": round(time.monotonic() - start, 1)}
         if before:

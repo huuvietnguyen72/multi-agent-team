@@ -96,3 +96,15 @@ class TesterOutput(BaseModel):
 class PMAccept(BaseModel):
     final_status: str
     summary: str
+
+
+class ManagerReply(BaseModel):
+    """Quản lý trên giao diện: trả lời người dùng và (khi người dùng yêu cầu rõ) đề xuất một lệnh."""
+    reply: str = Field(description="Câu trả lời cho người dùng, tiếng Việt, ngắn gọn, dựa trên trạng thái được đưa")
+    action: Literal["none", "stop", "resume", "dismiss_finding", "add_note"] = Field(
+        description="none: chỉ trả lời; stop: tạm dừng sau bước đang chạy; resume: chạy tiếp; "
+                    "dismiss_finding: bỏ qua finding CR-xx hoặc bug BUG-xx; add_note: dặn một role cho lượt kế tiếp")
+    ids: list[str] = Field(default_factory=list, description="dismiss_finding: mã CR-xx hoặc BUG-xx có trong trạng thái")
+    role: Literal["ba", "backend", "frontend", "reviewer", "tester", ""] = Field(
+        default="", description="add_note: role nhận ghi chú")
+    note: str = Field(default="", description="add_note: nội dung dặn; dismiss_finding: lý do bỏ qua")

@@ -11,6 +11,7 @@ Dùng để thử luồng graph và định tuyến mà không tốn token (`--m
 """
 from __future__ import annotations
 
+from state import open_bugs
 from tools.file_tools import read_files
 from schemas import (BackendOutput, BAOutput, Bug, CodeFile, FrontendOutput, PlanTask, PMAccept,
                      PMPlan, PMReview, ReviewFinding, ReviewOutput, TestCase, TesterOutput, UserStory)
@@ -105,6 +106,6 @@ def tester(state) -> TesterOutput:
 
 
 def pm_accept(state) -> PMAccept:
-    status = "ACCEPTED" if not state.get("bugs") and state.get("approved") else "NEEDS_HUMAN_REVIEW"
+    status = "ACCEPTED" if not open_bugs(state) and state.get("approved") else "NEEDS_HUMAN_REVIEW"
     return PMAccept(final_status=status, summary=f"Kết thúc sau {state.get('review_round', 0)} lần trả BA, "
                                                  f"{state.get('iteration', 0)} vòng test")

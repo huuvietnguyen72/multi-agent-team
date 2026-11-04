@@ -22,6 +22,8 @@ def tester(state):
         prompt += f"\n\nKết quả chạy test tự động:\n{test_output}"
     out = ask("tester", "tester", state, prompt, TesterOutput)
     bugs = [b.model_dump() for b in out.bugs]
+    dismissed = state.get("dismissed") or {}
+    bugs = [b for b in bugs if b["id"] not in dismissed]  # bug người dùng đã bỏ qua thì không mở lại
     report = out.report + (f"\n\n## Test tự động\n```\n{test_output}\n```" if test_output else "")
     write_doc(f"test_report_round{iteration}.md", report)
     write_doc("test_cases.md", "| id | story | rule | steps | expected | status |\n|---|---|---|---|---|---|\n" +

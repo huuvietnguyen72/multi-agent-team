@@ -56,6 +56,16 @@ chainlit run ui/app.py              # chạy từ thư mục gốc repo, mở ht
 - Bật **Chạy thử (mock)** để thử luồng không tốn token; **Độ trễ mỗi bước** làm chậm mỗi bước để kịp nhìn Backend và Frontend chạy song song.
 - Bấm nút **Chạy** (hoặc nút tên dự án) để bắt đầu. Nếu có role dùng model thật, giao diện hiện bảng role → model để xác nhận như `main.py`. Mỗi lúc chỉ một lần chạy; bấm nút dừng thì graph dừng sau bước đang chạy.
 - Nút **Chi tiết** ở mỗi tin nhắn mở bảng của role đó: từng lượt làm (bản đầu, sửa CR-xx, sửa BUG-xx), lượt đang chạy đến bước nào (nhận việc, đọc file, gọi model, nhận trả lời, ghi tệp), và phần sửa từng file dạng diff có dòng xóa (đỏ) và dòng thêm (xanh). Trong một lần gọi model thì không chia nhỏ hơn được, nên bước "gọi model" chỉ hiện số ký tự đã nhận khi provider có streaming.
+- **Quản lý** (tin nhắn tên `Manager`): gõ vào khung chat bất cứ lúc nào, kể cả khi team đang chạy. Quản lý đọc trạng thái lượt chạy (role đang làm, vòng, finding, bug, các bước gần nhất) và trả lời. Nói rõ yêu cầu thì Quản lý đề xuất một lệnh, chỉ có hiệu lực khi bấm **Đồng ý**:
+
+  | Ví dụ | Lệnh |
+  | --- | --- |
+  | "Dừng lại" | tạm dừng sau bước đang chạy, giữ trạng thái |
+  | "Chạy tiếp" | chạy tiếp từ chỗ dừng, không làm lại bước cũ |
+  | "Bỏ qua CR-04, báo nhầm" | finding (hoặc bug BUG-xx) không còn tính là phải sửa, Reviewer không nêu lại |
+  | "Dặn frontend: hiện lỗi từ trường error" | thêm lời dặn vào prompt lượt làm kế tiếp của role đó, một lần |
+
+  Lệnh được áp giữa hai bước của graph (LangGraph `update_state` rồi chạy tiếp từ checkpoint), nên không cắt ngang một lần gọi model và không thêm vòng sửa nào. Mọi lệnh đã áp được ghi trong `final_report.md`, mục "Can thiệp của người dùng". Model của Quản lý: ô chọn trong cài đặt, hoặc `MODEL_MANAGER` trong `.env`, mặc định giống PM; khi bật mock thì dùng Quản lý mock hiểu lệnh theo từ khóa.
 
 | Đang chạy | Chi tiết một role | Kết thúc |
 | --- | --- | --- |
