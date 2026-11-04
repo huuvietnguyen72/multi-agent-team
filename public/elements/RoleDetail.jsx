@@ -1,6 +1,6 @@
 // Khung "Chi tiết" của một role (FR-13 đến FR-15). Props do ui/turns.py dựng (Turns.props).
 // Chainlit đưa vào `props` và các hàm toàn cục `callAction`, `updateElement`.
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const COLORS = { PM: "#6941C6", BA: "#B54708", Backend: "#175CD3", Frontend: "#087443", Reviewer: "#C11574", Tester: "#344054" };
 const SHORT = { PM: "PM", BA: "BA", Backend: "BE", Frontend: "FE", Reviewer: "RV", Tester: "QA" };
@@ -31,8 +31,8 @@ function Phases({ turn }) {
         const done = i < at, now = i === at;
         const cls = done ? "bg-green-600/15 text-green-700 dark:text-green-300"
           : now ? "bg-blue-600/15 text-blue-700 dark:text-blue-300 font-semibold"
-          : "border border-border text-muted-foreground";
-        return <li key={key} className={`rounded-full px-2.5 py-1 ${cls}`}>{done ? "✓ " : now ? "● " : ""}{label}</li>;
+          : "bg-muted/60 text-muted-foreground";
+        return <li key={key} className={`rounded-full px-2.5 py-1 ${cls}`}>{done ? "✓ " : now ? "● " : "○ "}{label}</li>;
       })}
     </ol>
   );
@@ -55,7 +55,7 @@ function Diff({ file }) {
             const bg = l.kind === "add" ? "bg-green-500/15" : l.kind === "del" ? "bg-red-500/15" : l.kind === "hunk" ? "bg-blue-500/10 text-muted-foreground" : "";
             const sign = l.kind === "add" ? "+" : l.kind === "del" ? "-" : "";
             return (
-              <div key={i} className={`flex whitespace-pre ${bg}`}>
+              <div key={i} className={`flex ${bg}`} style={{ whiteSpace: "pre", width: "max-content", minWidth: "100%" }}>
                 <span className="w-9 shrink-0 select-none pr-1 text-right text-muted-foreground">{l.old ?? ""}</span>
                 <span className="w-9 shrink-0 select-none pr-1 text-right text-muted-foreground">{l.new ?? ""}</span>
                 <span className={`w-5 shrink-0 select-none text-center font-bold ${l.kind === "add" ? "text-green-700 dark:text-green-400" : "text-red-700 dark:text-red-400"}`}>{sign}</span>
@@ -104,19 +104,26 @@ function TurnCard({ turn, first }) {
 
 export default function RoleDetail() {
   const turns = props.turns || [];
+  const chosen = useRef(null);
+  useEffect(() => {  // màn hình hẹp: hàng role cuộn ngang, đưa role đang xem vào tầm nhìn
+    if (chosen.current) chosen.current.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [props.role]);
   const running = turns.filter(t => t.status === "running").length;
   return (
     <div className="flex flex-col gap-3 text-foreground">
-      <div className="flex flex-wrap gap-1.5" role="group" aria-label="Đổi role">
-        {props.roles.map(r => (
-          <button key={r} type="button" aria-pressed={r === props.role}
-            onClick={() => callAction({ name: "show_role", payload: { role: r } })}
-            className={`inline-flex items-center gap-1.5 rounded-full py-1 pl-1 pr-2.5 text-xs min-h-[36px] ${r === props.role ? "border-2 border-blue-600 font-semibold" : "border border-border"}`}>
-            <Avatar role={r} size={24} />{r}
-          </button>
-        ))}
-        <button type="button" onClick={() => callAction({ name: "close_role", payload: {} })}
-          className="ml-auto rounded-md border border-border px-3 text-xs min-h-[36px]">Đóng</button>
+      <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1" role="group" aria-label="Đổi role">
+        {props.roles.map(r => {
+          const st = (props.role_status || {})[r] || "idle";
+          return (
+            <button key={r} type="button" aria-pressed={r === props.role} ref={r === props.role ? chosen : null}
+              title={st === "running" ? `${r} đang làm` : st === "idle" ? `${r} chưa làm lượt nào` : r}
+              onClick={() => callAction({ name: "show_role", payload: { role: r } })}
+              className={`inline-flex shrink-0 items-center gap-1.5 rounded-full py-1 pl-1 pr-2.5 text-xs min-h-[36px] ${r === props.role ? "border-2 border-blue-600 font-semibold" : "border border-border"} ${st === "idle" && r !== props.role ? "opacity-50" : ""}`}>
+              <Avatar role={r} size={24} />{r}
+              {st === "running" && <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: 9999, background: "#2563eb" }} />}
+            </button>
+          );
+        })}
       </div>
       <div className="flex items-center gap-2.5">
         <Avatar role={props.role} size={36} />

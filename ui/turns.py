@@ -186,5 +186,7 @@ class Turns:
             d["added"] = sum(f.added for f in t.files)
             d["removed"] = sum(f.removed for f in t.files)
             turns.append(d)
-        return {"role": role, "roles": list(ROLE_ORDER), "turns": turns,
+        status = {r: ("running" if any(t.status == "running" for t in self.of(r)) else "done" if self.of(r) else "idle")
+                  for r in ROLE_ORDER}
+        return {"role": role, "roles": list(ROLE_ORDER), "role_status": status, "turns": turns,
                 "phases": [[p, PHASE_LABELS[p]] for p in PHASES]}

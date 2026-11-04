@@ -1,0 +1,260 @@
+{
+    "common": {
+        "actions": {
+            "cancel": "Hủy",
+            "confirm": "Lưu",
+            "continue": "Tiếp tục",
+            "goBack": "Quay lại",
+            "reset": "Đặt lại",
+            "submit": "Gửi"
+        },
+        "status": {
+            "loading": "Đang tải...",
+            "error": {
+                "default": "Có lỗi xảy ra",
+                "serverConnection": "Không kết nối được tới server"
+            }
+        }
+    },
+    "auth": {
+        "login": {
+            "title": "Đăng nhập",
+            "form": {
+                "email": {
+                    "label": "Tài khoản",
+                    "required": "Cần nhập tài khoản",
+                    "placeholder": "admin"
+                },
+                "password": {
+                    "label": "Mật khẩu",
+                    "required": "Cần nhập mật khẩu"
+                },
+                "actions": {
+                    "signin": "Đăng nhập"
+                },
+                "alternativeText": {
+                    "or": "HOẶC"
+                }
+            },
+            "errors": {
+                "default": "Không đăng nhập được, thử lại.",
+                "signin": "Không đăng nhập được, thử lại.",
+                "oauthSignin": "Không đăng nhập được, thử lại.",
+                "redirectUriMismatch": "Không đăng nhập được, thử lại.",
+                "oauthCallback": "Không đăng nhập được, thử lại.",
+                "oauthCreateAccount": "Không đăng nhập được, thử lại.",
+                "emailCreateAccount": "Không đăng nhập được, thử lại.",
+                "callback": "Không đăng nhập được, thử lại.",
+                "oauthAccountNotLinked": "Không đăng nhập được, thử lại.",
+                "emailSignin": "Không đăng nhập được, thử lại.",
+                "emailVerify": "Không đăng nhập được, thử lại.",
+                "credentialsSignin": "Sai tài khoản hoặc mật khẩu (UI_USERNAME / UI_PASSWORD trong .env, mặc định admin/admin).",
+                "sessionRequired": "Cần đăng nhập để xem trang này."
+            }
+        },
+        "provider": {
+            "continue": "Tiếp tục với {{provider}}"
+        }
+    },
+    "chat": {
+        "input": {
+            "placeholder": "Hỏi Quản lý hoặc ra lệnh (vd: dừng lại, bỏ qua CR-02)",
+            "actions": {
+                "send": "Gửi",
+                "stop": "Dừng lượt chạy",
+                "attachFiles": "Đính kèm file"
+            }
+        },
+        "favorites": {
+            "use": "Use a favorite message",
+            "headline": "Favorite Messages",
+            "remove": "Remove favorite",
+            "empty": {
+                "title": "No Saved Prompts Yet",
+                "description": "Start by sending a prompt and star it or star a prompt from previous chats"
+            }
+        },
+        "commands": {
+            "button": "Tools",
+            "changeTool": "Change Tool",
+            "availableTools": "Available Tools"
+        },
+        "speech": {
+            "start": "Start recording",
+            "stop": "Stop recording",
+            "connecting": "Connecting"
+        },
+        "fileUpload": {
+            "dragDrop": "Kéo thả file vào đây",
+            "browse": "Chọn file",
+            "sizeLimit": "Giới hạn:",
+            "errors": {
+                "failed": "Tải lên thất bại",
+                "cancelled": "Đã hủy tải lên"
+            },
+            "actions": {
+                "cancelUpload": "Hủy tải lên",
+                "removeAttachment": "Bỏ file đính kèm"
+            }
+        },
+        "messages": {
+            "status": {
+                "using": "Đang dùng",
+                "used": "Đã dùng"
+            },
+            "actions": {
+                "copy": {
+                    "button": "Sao chép",
+                    "success": "Đã sao chép"
+                }
+            },
+            "feedback": {
+                "positive": "Helpful",
+                "negative": "Not helpful",
+                "edit": "Edit feedback",
+                "dialog": {
+                    "title": "Add a comment",
+                    "submit": "Submit feedback",
+                    "yourFeedback": "Your feedback..."
+                },
+                "status": {
+                    "updating": "Updating",
+                    "updated": "Feedback updated"
+                }
+            }
+        },
+        "history": {
+            "title": "Tin đã gửi",
+            "empty": "Chưa có gì",
+            "show": "Xem tin đã gửi"
+        },
+        "settings": {
+            "title": "Cài đặt lượt chạy",
+            "customize": "Chọn dự án, chế độ chạy và model của từng role"
+        },
+        "watermark": "Kết quả do AI tạo, hãy kiểm tra trước khi dùng."
+    },
+    "threadHistory": {
+        "sidebar": {
+            "title": "Các cuộc chat cũ",
+            "filters": {
+                "search": "Tìm",
+                "placeholder": "Tìm trong các cuộc chat..."
+            },
+            "timeframes": {
+                "today": "Hôm nay",
+                "yesterday": "Hôm qua",
+                "previous7days": "7 ngày trước",
+                "previous30days": "30 ngày trước"
+            },
+            "empty": "Chưa có cuộc chat nào",
+            "actions": {
+                "close": "Đóng thanh bên",
+                "open": "Mở thanh bên"
+            }
+        },
+        "thread": {
+            "untitled": "Cuộc chat chưa đặt tên",
+            "menu": {
+                "rename": "Đổi tên",
+                "share": "Chia sẻ",
+                "delete": "Xóa"
+            },
+            "actions": {
+                "share": {
+                    "title": "Share link to chat",
+                    "button": "Share",
+                    "status": {
+                        "copied": "Link copied",
+                        "created": "Share link created!",
+                        "unshared": "Sharing disabled for this thread"
+                    },
+                    "error": {
+                        "create": "Failed to create share link",
+                        "unshare": "Failed to unshare thread"
+                    }
+                },
+                "delete": {
+                    "title": "Xóa cuộc chat?",
+                    "description": "Xóa cuộc chat cùng mọi tin nhắn của nó, không khôi phục được. Code trong projects/ không bị xóa.",
+                    "success": "Đã xóa cuộc chat",
+                    "inProgress": "Đang xóa"
+                },
+                "rename": {
+                    "title": "Đổi tên cuộc chat",
+                    "description": "Nhập tên mới",
+                    "form": {
+                        "name": {
+                            "label": "Tên",
+                            "placeholder": "Tên mới"
+                        }
+                    },
+                    "success": "Đã đổi tên",
+                    "inProgress": "Đang đổi tên"
+                }
+            }
+        }
+    },
+    "navigation": {
+        "header": {
+            "chat": "Chat",
+            "readme": "Hướng dẫn",
+            "theme": {
+                "light": "Nền sáng",
+                "dark": "Nền tối",
+                "system": "Theo hệ thống"
+            }
+        },
+        "newChat": {
+            "button": "Phiên mới",
+            "dialog": {
+                "title": "Mở phiên mới",
+                "description": "Mở cuộc chat mới. Cuộc chat hiện tại vẫn được lưu ở thanh bên trái.",
+                "tooltip": "Phiên mới"
+            }
+        },
+        "user": {
+            "menu": {
+                "settings": "Cài đặt",
+                "settingsKey": "S",
+                "apiKeys": "API Keys",
+                "logout": "Đăng xuất"
+            }
+        }
+    },
+    "apiKeys": {
+        "title": "Required API Keys",
+        "description": "To use this app, the following API keys are required. The keys are stored on your device's local storage.",
+        "success": {
+            "saved": "Saved successfully"
+        }
+    },
+    "alerts": {
+        "info": "Info",
+        "note": "Note",
+        "tip": "Tip",
+        "important": "Important",
+        "warning": "Warning",
+        "caution": "Caution",
+        "debug": "Debug",
+        "example": "Example",
+        "success": "Success",
+        "help": "Help",
+        "idea": "Idea",
+        "pending": "Pending",
+        "security": "Security",
+        "beta": "Beta",
+        "best-practice": "Best Practice"
+    },
+    "components": {
+        "MultiSelectInput": {
+            "placeholder": "Chọn..."
+        },
+        "DatePickerInput": {
+            "placeholder": {
+                "single": "Pick a date",
+                "range": "Pick a date range"
+            }
+        }
+    }
+}

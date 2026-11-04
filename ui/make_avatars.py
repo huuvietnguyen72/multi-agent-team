@@ -1,4 +1,4 @@
-"""Vẽ 7 ảnh đại diện cho tin nhắn của từng role vào public/avatars/ (chạy tay một lần, cần Pillow):
+"""Vẽ 8 ảnh đại diện cho tin nhắn của từng role vào public/avatars/ (chạy tay một lần, cần Pillow):
 
     python ui/make_avatars.py
 """
@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parent.parent
 ROLES = {  # tên tác giả viết thường -> (chữ, màu nền); màu giống bản thiết kế
     "pm": ("PM", "#6941C6"), "ba": ("BA", "#B54708"), "backend": ("BE", "#175CD3"),
     "frontend": ("FE", "#087443"), "reviewer": ("RV", "#C11574"), "tester": ("QA", "#344054"),
-    "manager": ("QL", "#0E9384"),
+    "manager": ("QL", "#0E9384"), "team_ai_agent": ("AI", "#475467"),  # team_ai_agent: tin của hệ thống
 }
 
 
