@@ -7,12 +7,13 @@ from types import SimpleNamespace
 import pytest
 
 from agents import providers
-from agents.providers import Provider, Target, describe, load_providers, parse_spec, target_for
+from agents.providers import (Provider, Target, check_models, default_specs, describe, escalation_specs,
+                              load_providers, missing_keys, model_choices, parse_spec, target_for)
 from agents.providers import anthropic_api, claude_code, openai_compat
 from schemas import PMReview
 
 ROLE_VARS = ["MODEL", "MODEL_ALL"] + [f"{k}_{r.upper()}" for k in ("MODEL", "EFFORT", "MAX_TOKENS") for r in providers.ROLES] + \
-            ["EFFORT", "MAX_TOKENS"]
+            ["EFFORT", "MAX_TOKENS", "ESCALATE", "UI_MODELS"] + [f"ESCALATE_{r.upper()}" for r in providers.ROLES]
 
 
 @pytest.fixture(autouse=True)
@@ -97,6 +98,64 @@ def test_missing_keys_checked_before_run(monkeypatch):
     assert providers.missing_keys(ps) == ["tester: provider 'openai' cần OPENAI_API_KEY trong .env"]
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
     assert providers.missing_keys(ps) == []
+
+
+def test_target_for_spec_overrides_env(monkeypatch):
+    ps = load_providers()
+    monkeypatch.setenv("MODEL", "claude-code:sonnet")
+    monkeypatch.setenv("MODEL_BACKEND", "opencode-go:glm-5.3")
+    assert target_for("backend", ps, spec="claude-code:opus").label == "claude-code:opus"
+    assert target_for("backend", ps, spec="claude-code").label == "claude-code:sonnet"
+
+
+def test_target_for_spec_keeps_role_effort(monkeypatch):
+    monkeypatch.setenv("EFFORT_BACKEND", "low")
+    assert target_for("backend", load_providers(), spec="claude-code:opus").effort == "low"
+
+
+def test_default_specs_follow_env(monkeypatch):
+    ps = load_providers()
+    assert default_specs(ps) == {r: "mock" for r in providers.ROLES}
+    monkeypatch.setenv("MODEL", "claude-code")
+    monkeypatch.setenv("MODEL_TESTER", "opencode-go:glm-5.3")
+    specs = default_specs(ps)
+    assert specs["pm"] == "claude-code:sonnet"
+    assert specs["tester"] == "opencode-go:glm-5.3"
+
+
+def test_escalation_specs_role_beats_global(monkeypatch):
+    monkeypatch.setenv("ESCALATE", "claude-code:opus")
+    monkeypatch.setenv("ESCALATE_BA", "claude-api")
+    assert escalation_specs() == {"ba": "claude-api", "backend": "claude-code:opus", "frontend": "claude-code:opus"}
+
+
+def test_escalation_specs_rejects_other_roles(monkeypatch):
+    monkeypatch.setenv("ESCALATE_REVIEWER", "claude-code:opus")
+    with pytest.raises(ValueError, match="ESCALATE_REVIEWER"):
+        escalation_specs()
+
+
+def test_model_choices_dedup_sorted(monkeypatch):
+    monkeypatch.setenv("MODEL", "claude-code:sonnet")
+    monkeypatch.setenv("UI_MODELS", " ollama:qwen3:8b ,claude-code:sonnet")
+    choices = model_choices(load_providers())
+    assert choices == sorted(set(choices))
+    assert {"mock", "ollama:qwen3:8b", "claude-api:claude-opus-5-5"} <= set(choices)
+    assert choices.count("claude-code:sonnet") == 1
+
+
+def test_check_models_names_role_and_missing_key(monkeypatch):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    problems = check_models({"pm": "nope:x"}, {"backend": "claude-api"}, load_providers())
+    assert any(p.startswith("pm:") for p in problems)
+    assert any("backend (vòng cuối)" in p and "ANTHROPIC_API_KEY" in p for p in problems)
+
+
+def test_check_models_env_matches_missing_keys(monkeypatch):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.setenv("MODEL", "claude-api")
+    ps = load_providers()
+    assert check_models(None, None, ps) == missing_keys(ps)
 
 
 def test_local_file_adds_and_overrides(tmp_path):

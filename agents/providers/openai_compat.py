@@ -17,6 +17,7 @@ Schema JSON luôn được ghi thêm trong system prompt để model nào ép l�
 from __future__ import annotations
 
 import json
+import time
 import uuid
 from typing import TypeVar
 
@@ -25,6 +26,7 @@ from pydantic import BaseModel
 
 from agents.providers.base import api_key, extract_json, with_schema_retry
 from agents.skills import load_skill
+from tools.runlog import progress
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -79,6 +81,7 @@ def _stream(target, body: dict, headers: dict) -> tuple[str, str | None, int]:
             hint = " (hết hạn mức hoặc bị giới hạn tốc độ?)" if r.status_code == 429 else ""
             raise RuntimeError(f"{target.role} ({target.label}): HTTP {r.status_code}{hint}: {r.text[:500]}")
         parts, finish, reasoning = [], None, 0
+        chars, last_report = 0, time.monotonic()
         for line in r.iter_lines():
             if not line.startswith(b"data:"):
                 continue
@@ -92,8 +95,12 @@ def _stream(target, body: dict, headers: dict) -> tuple[str, str | None, int]:
                 delta = choice.get("delta") or {}
                 if (text := delta.get("content")):
                     parts.append(text)
+                    chars += len(text)
                 reasoning += len(delta.get("reasoning_content") or delta.get("reasoning") or "")
                 finish = choice.get("finish_reason") or finish
+            if time.monotonic() - last_report >= 2:  # báo giao diện số ký tự đã nhận, tối đa 2 giây một lần
+                progress("stream", chars=chars)
+                last_report = time.monotonic()
     return "".join(parts), finish, reasoning
 
 

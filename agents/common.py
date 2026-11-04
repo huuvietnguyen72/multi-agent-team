@@ -2,9 +2,12 @@
 from __future__ import annotations
 
 import json
+import time
 
 from agents import mock
-from agents.providers import ROLES, adapter, describe, target_for
+from agents.escalation import pick_target
+from agents.providers import ROLES, adapter, describe
+from tools.runlog import progress, set_call_info
 
 __all__ = ["ROLES", "ask", "describe_providers", "dump", "with_project_context"]
 
@@ -24,11 +27,23 @@ def with_project_context(state, prompt: str) -> str:
 
 
 def ask(role: str, node: str, state, prompt: str, schema):
-    """Gọi model đã chọn cho `role` (MODEL / MODEL_<ROLE> trong .env); provider mock thì dùng agents/mock.py."""
-    target = target_for(role)
-    if target.provider.type == "mock":
-        return getattr(mock, node)(state)
-    return adapter(target.provider.type)(target, role, with_project_context(state, prompt), schema)
+    """Gọi model đã chọn cho `role`: state["models"] (chọn trên giao diện) hoặc MODEL / MODEL_<ROLE> trong .env,
+    đổi sang model vòng cuối nếu đây là lần sửa cuối. Provider mock thì dùng agents/mock.py.
+    Model và thời gian gọi được ghi vào dòng log kế tiếp của node."""
+    target, before = pick_target(role, state)
+    if before:
+        print(f"   ↑ {role}: đổi từ {before} sang {target.label} vì đây là vòng sửa cuối")
+    progress("model", model=target.label, **({"escalated_from": before} if before else {}))
+    start = time.monotonic()
+    try:
+        if target.provider.type == "mock":
+            return getattr(mock, node)(state)
+        return adapter(target.provider.type)(target, role, with_project_context(state, prompt), schema)
+    finally:
+        info = {"model": target.label, "seconds": round(time.monotonic() - start, 1)}
+        if before:
+            info["escalated_from"] = before
+        set_call_info(info)
 
 
 def dump(obj) -> str:

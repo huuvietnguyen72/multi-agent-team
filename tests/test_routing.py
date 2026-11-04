@@ -52,4 +52,6 @@ def test_full_mock_run(monkeypatch, tmp_path):
     assert nodes[7:] == ["reviewer", "frontend", "reviewer", "tester", "backend", "reviewer", "tester",
                          "pm_accept"]
     assert final["final_status"] == "ACCEPTED"
+    # model ghi riêng cho từng bước, kể cả khi Backend và Frontend chạy song song
+    assert all(e["data"]["model"] == "mock" and "seconds" in e["data"] for e in final["log"])
     assert (tmp_path / "docs" / "final_report.md").is_file() and (tmp_path / "backend").is_dir()

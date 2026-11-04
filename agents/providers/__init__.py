@@ -25,6 +25,7 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 CONFIG_FILES = (ROOT / "providers.toml", ROOT / "providers.local.toml")
 ROLES = ("pm", "ba", "backend", "frontend", "reviewer", "tester")
 ADAPTER_TYPES = ("anthropic", "openai-compatible", "claude-code", "mock")
+ESCALATABLE: tuple[str, ...] = ("ba", "backend", "frontend")  # role được tự nâng model ở vòng sửa cuối
 
 
 @dataclass(frozen=True)
@@ -74,17 +75,22 @@ def _env_role(key: str, role: str) -> str | None:
     return os.getenv(f"{key}_{role.upper()}") or os.getenv(key) or None
 
 
-def target_for(role: str, providers: dict[str, Provider] | None = None) -> Target:
+def target_for(role: str, providers: dict[str, Provider] | None = None, spec: str | None = None) -> Target:
+    """Model của `role`. `spec` ("<provider>:<model>", ví dụ chọn trên giao diện) thắng MODEL_ALL, MODEL
+    và MODEL_<ROLE>; EFFORT_<ROLE>, MAX_TOKENS_<ROLE> và default_model vẫn áp dụng như thường."""
     providers = providers if providers is not None else load_providers()
-    forced = os.getenv("MODEL_ALL")
-    default = forced or os.getenv("MODEL") or "mock"
-    name, model = parse_spec(default)
-    if name not in providers:  # kiểm tra cả khi mọi role đều có MODEL_<ROLE>
-        src = "--model" if forced else "MODEL"
-        raise ValueError(f"{src}: provider '{name}' chưa khai báo trong providers.toml "
-                         f"(có: {', '.join(sorted(providers))})")
-    if not forced and name != "mock" and (override := os.getenv(f"MODEL_{role.upper()}")):
-        name, model = parse_spec(override)
+    if spec:
+        name, model = parse_spec(spec)
+    else:
+        forced = os.getenv("MODEL_ALL")
+        default = forced or os.getenv("MODEL") or "mock"
+        name, model = parse_spec(default)
+        if name not in providers:  # kiểm tra cả khi mọi role đều có MODEL_<ROLE>
+            src = "--model" if forced else "MODEL"
+            raise ValueError(f"{src}: provider '{name}' chưa khai báo trong providers.toml "
+                             f"(có: {', '.join(sorted(providers))})")
+        if not forced and name != "mock" and (override := os.getenv(f"MODEL_{role.upper()}")):
+            name, model = parse_spec(override)
     if name not in providers:
         raise ValueError(f"{role}: provider '{name}' chưa khai báo trong providers.toml "
                          f"(có: {', '.join(sorted(providers))})")
@@ -96,6 +102,95 @@ def target_for(role: str, providers: dict[str, Provider] | None = None) -> Targe
     effort = _env_role("EFFORT", role) or p.options.get("effort")
     max_tokens = _env_role("MAX_TOKENS", role) or p.options.get("max_tokens")
     return Target(role, p, model, effort, int(max_tokens) if max_tokens else None)
+
+
+def default_specs(providers: dict[str, Provider] | None = None) -> dict[str, str]:
+    """Role -> model đang chọn trong .env (dạng label). Role cấu hình sai thì bỏ qua."""
+    providers = providers if providers is not None else load_providers()
+    out = {}
+    for role in ROLES:
+        try:
+            out[role] = target_for(role, providers).label
+        except ValueError:
+            pass
+    return out
+
+
+def escalation_specs() -> dict[str, str]:
+    """Model vòng sửa cuối: ESCALATE_<ROLE> thắng ESCALATE, chỉ cho các role trong ESCALATABLE."""
+    for role in ROLES:
+        if role not in ESCALATABLE and os.getenv(f"ESCALATE_{role.upper()}"):
+            raise ValueError(f"ESCALATE_{role.upper()}: chỉ dùng được cho {', '.join(ESCALATABLE)}")
+    out = {}
+    for role in ESCALATABLE:
+        spec = (os.getenv(f"ESCALATE_{role.upper()}") or os.getenv("ESCALATE") or "").strip()
+        if spec:
+            out[role] = spec
+    return out
+
+
+def model_choices(providers: dict[str, Provider] | None = None) -> list[str]:
+    """Danh sách cho ô chọn model: mock, mỗi provider với default_model, cùng mọi model đang khai báo
+    trong MODEL, MODEL_<ROLE>, ESCALATE* và UI_MODELS (phân cách bằng dấu phẩy)."""
+    providers = providers if providers is not None else load_providers()
+    found = {"mock"}
+    for p in providers.values():
+        if p.type != "mock" and p.options.get("default_model"):
+            found.add(f"{p.name}:{p.options['default_model']}")
+    keys = ["MODEL", "ESCALATE"] + [f"{k}_{r.upper()}" for k in ("MODEL", "ESCALATE") for r in ROLES]
+    raw = [os.getenv(k) or "" for k in keys] + (os.getenv("UI_MODELS") or "").split(",")
+    found.update(v.strip() for v in raw if v.strip())
+    return sorted(found)
+
+
+def _key_problem(target: Target) -> str | None:
+    env = target.provider.options.get("api_key_env")
+    if env and not os.getenv(env):
+        return f"provider '{target.provider.name}' cần {env} trong .env"
+    return None
+
+
+def _strip_role(role: str, msg: str) -> str:
+    return msg[len(role) + 2:] if msg.startswith(f"{role}: ") else msg
+
+
+def check_models(models: dict[str, str] | None, escalate: dict[str, str] | None,
+                 providers: dict[str, Provider] | None = None) -> list[str]:
+    """Lỗi cấu hình model theo role, rỗng là chạy được. models None: đọc .env (giống missing_keys);
+    escalate None: đọc ESCALATE*. Role không có trong `models` thì cũng đọc .env."""
+    providers = providers if providers is not None else load_providers()
+    problems = []
+    for role in ROLES:
+        spec = (models or {}).get(role)
+        try:
+            target = target_for(role, providers, spec=spec)
+        except ValueError as e:
+            msg = str(e)
+            if msg.startswith(("MODEL:", "--model:")):  # lỗi chung cho cả team: báo một lần
+                if msg not in problems:
+                    problems.append(msg)
+            else:
+                problems.append(f"{role}: {_strip_role(role, msg)}")
+            continue
+        if msg := _key_problem(target):
+            problems.append(f"{role}: {msg}")
+    if escalate is None:
+        try:
+            escalate = escalation_specs()
+        except ValueError as e:
+            return problems + [str(e)]
+    for role, spec in escalate.items():
+        if role not in ESCALATABLE:
+            problems.append(f"ESCALATE_{role.upper()}: chỉ dùng được cho {', '.join(ESCALATABLE)}")
+            continue
+        try:
+            target = target_for(role, providers, spec=spec)
+        except ValueError as e:
+            problems.append(f"{role} (vòng cuối): {_strip_role(role, str(e))}")
+            continue
+        if msg := _key_problem(target):
+            problems.append(f"{role} (vòng cuối): {msg}")
+    return problems
 
 
 def missing_keys(providers: dict[str, Provider] | None = None) -> list[str]:

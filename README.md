@@ -43,6 +43,24 @@ python -m pytest -q tests                            # test khung (không gọi 
 
 Đầu ra nằm trong `projects/<tên>/output/` (không commit): `docs/` (user stories, API spec, code review, test case, test report, nghiệm thu), `backend/`, `frontend/`. Mỗi dự án một thư mục riêng nên chạy dự án này không ghi đè dự án khác.
 
+## Giao diện
+
+Ngoài terminal, có thể xem team làm việc trên trình duyệt (Chainlit): mỗi role là một người trong khung chat, bảng tiến độ ghi bước nào đang chạy, bấm vào tên file để xem nội dung ở khung bên phải.
+
+```powershell
+pip install -r requirements.txt     # đã có chainlit; cần Python 3.11 đến 3.13, nên cài trong .venv
+chainlit run ui/app.py              # chạy từ thư mục gốc repo, mở http://localhost:8000
+```
+
+- Bấm biểu tượng bánh răng để chọn dự án, file yêu cầu, model cho từng role và model ở vòng sửa cuối. Giá trị ban đầu lấy từ `.env`; `(không đổi)` ở model vòng cuối nghĩa là không nâng model.
+- Bật **Chạy thử (mock)** để thử luồng không tốn token; **Độ trễ mỗi bước** làm chậm mỗi bước để kịp nhìn Backend và Frontend chạy song song.
+- Bấm nút **Chạy** (hoặc nút tên dự án) để bắt đầu. Nếu có role dùng model thật, giao diện hiện bảng role → model để xác nhận như `main.py`. Mỗi lúc chỉ một lần chạy; bấm nút dừng thì graph dừng sau bước đang chạy.
+- Nút **Chi tiết** ở mỗi tin nhắn mở bảng của role đó: từng lượt làm (bản đầu, sửa CR-xx, sửa BUG-xx), lượt đang chạy đến bước nào (nhận việc, đọc file, gọi model, nhận trả lời, ghi tệp), và phần sửa từng file dạng diff có dòng xóa (đỏ) và dòng thêm (xanh). Trong một lần gọi model thì không chia nhỏ hơn được, nên bước "gọi model" chỉ hiện số ký tự đã nhận khi provider có streaming.
+
+| Đang chạy | Chi tiết một role | Kết thúc |
+| --- | --- | --- |
+| ![](docs/images/ui-running.png) | ![](docs/images/ui-role-detail.png) | ![](docs/images/ui-done.png) |
+
 ## Tạo dự án mới
 
 1. Chép `projects/_template/` thành `projects/<tên-dự-án>/`.
@@ -113,6 +131,17 @@ response_format = "json_object"      # json_schema (mặc định) | json_object
 rồi đặt `MODEL_BACKEND=my-vllm:<tên model>`. Tùy chọn của từng adapter (header, tên tham số effort/max_tokens, timeout, ...) ghi ở đầu file adapter trong `agents/providers/`. Với giao thức khác hẳn: viết `agents/providers/<adapter>.py` có hàm `call(target, role, prompt, schema)` và đăng ký trong `agents/providers/__init__.py`.
 
 Mọi adapter: skill của role làm system prompt, đầu ra ép theo JSON Schema từ `schemas.py` (adapter `openai-compatible` còn ghi schema vào system prompt cho server ép lỏng), sai schema thì thử lại 1 lần rồi dừng; đầu ra bị cắt do trần token thì báo lỗi kèm số ký tự trả lời và suy luận để biết nên tăng `MAX_TOKENS_<ROLE>` hay giảm `EFFORT_<ROLE>`. Lượt dùng tính theo nhà cung cấp: gói Claude và OpenCode Go có hạn mức theo khung giờ; chạm giới hạn thì bước đang chạy báo lỗi và graph dừng.
+
+## Tự nâng model ở vòng sửa cuối
+
+BA, Backend và Frontend có tối đa 3 vòng sửa. Có thể cho riêng vòng cuối dùng model mạnh hơn, để những lỗi model thường sửa mãi không được có thêm một cơ hội:
+
+```
+ESCALATE=claude-code:opus                    # mọi role được phép
+ESCALATE_BACKEND=claude-api:claude-opus-5-5  # riêng một role, thắng ESCALATE
+```
+
+Chỉ áp dụng cho `ba`, `backend`, `frontend` (đặt `ESCALATE_REVIEWER` sẽ báo lỗi), và bỏ qua khi model thường là `mock`. Khi đổi, terminal in `↑ backend: đổi từ X sang Y vì đây là vòng sửa cuối`, log và giao diện ghi model đã dùng cho từng bước.
 
 ## Skills
 
